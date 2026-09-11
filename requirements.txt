@@ -1,7 +1,9 @@
 streamlit
-matplotlib
 pandas
-pytest
+numpy
 supabase
 extra-streamlit-components
 plotly
+paho-mqtt
+pyserial
+pytest
