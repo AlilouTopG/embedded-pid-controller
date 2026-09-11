@@ -1,4 +1,12 @@
+# Environments & Secrets
+.env
+.env.local
+.streamlit/secrets.toml
+
+# Build and Temp files
 build/
 *.o
 *.exe
+__pycache__/
+*.pyc
 .DS_Store
