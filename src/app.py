@@ -1388,7 +1388,8 @@ with tab_report:
     with st.expander("Preview Report", expanded=False):
         st.components.v1.html(report_html, height=900, scrolling=True)
 
-with tab_archive := st.tabs(["☁️ Cloud Archive"])[0]:
+archive_tabs = st.tabs(["☁️ Cloud Archive"])
+with archive_tabs[0]:
     if st.button("Save Simulation to Cloud Database", use_container_width=True):
         if supabase and st.session_state.user:
             try:
