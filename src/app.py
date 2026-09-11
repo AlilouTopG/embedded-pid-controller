@@ -11,6 +11,64 @@ st.set_page_config(
     layout="wide"
 )
 
+# ---------------------------------------------------------
+# CUSTOM PROFESSIONAL CYAN & DARK INDUSTRIAL THEME (CSS)
+# ---------------------------------------------------------
+st.markdown("""
+<style>
+    /* Main Background & Text */
+    .stApp {
+        background-color: #0B0E14;
+        color: #E0E6ED;
+    }
+    
+    /* Sidebar Styling */
+    [data-testid="stSidebar"] {
+        background-color: #121824;
+        border-right: 1px solid #1E293B;
+    }
+    
+    /* Headings & Accent Text */
+    h1, h2, h3, h4, .stCaption {
+        color: #00F2FE !important;
+        font-family: 'Segoe UI', Roboto, sans-serif;
+    }
+    
+    /* Buttons Styling */
+    .stButton>button {
+        background: linear-gradient(135deg, #00C6FF 0%, #0072FF 100%);
+        color: #000000 !important;
+        font-weight: bold;
+        border: none;
+        border-radius: 6px;
+        padding: 0.5rem 1rem;
+        transition: all 0.3s ease;
+    }
+    .stButton>button:hover {
+        background: linear-gradient(135deg, #00F2FE 0%, #4FACFE 100%);
+        box-shadow: 0 0 12px rgba(0, 242, 254, 0.6);
+        color: #000000 !important;
+    }
+
+    /* Metric Cards */
+    [data-testid="stMetricValue"] {
+        color: #00F2FE !important;
+        font-size: 1.8rem !important;
+    }
+    [data-testid="stMetric"] {
+        background-color: #161F30;
+        border: 1px solid #00F2FE33;
+        border-radius: 8px;
+        padding: 10px;
+    }
+
+    /* Inputs, Sliders, Selectboxes */
+    .stSelectbox, .stSlider, .stTextInput {
+        color: #00F2FE;
+    }
+</style>
+""", unsafe_allow_html=True)
+
 SUPABASE_URL = st.secrets.get("SUPABASE_URL", os.getenv("SUPABASE_URL", ""))
 SUPABASE_KEY = st.secrets.get("SUPABASE_KEY", os.getenv("SUPABASE_KEY", ""))
 
@@ -29,7 +87,6 @@ supabase = init_supabase()
 if "user" not in st.session_state:
     st.session_state.user = None
 
-# Check for session token in URL query params on Refresh
 query_params = st.query_params
 token_from_url = query_params.get("session_token", None)
 
@@ -61,7 +118,6 @@ if st.session_state.user is None:
                 res = supabase.auth.sign_in_with_password({"email": email, "password": password})
                 st.session_state.user = res.user
                 if res.session:
-                    # Save token directly to URL params so Refresh preserves session
                     st.query_params["session_token"] = res.session.access_token
                 st.rerun()
             except Exception as e:
@@ -160,22 +216,32 @@ col2.metric("Current PV", f"{pv_value:.2f} {cfg['unit']}")
 col3.metric("Target SP", f"{target_setpoint:.2f} {cfg['unit']}")
 col4.metric("Steady Error", f"{abs(target_setpoint - pv_value):.2f} {cfg['unit']}")
 
-# Real-time Visualizations
+# Real-time Visualizations (DARK CYAN THEME FOR MATPLOTLIB)
 fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 6), sharex=True)
+fig.patch.set_facecolor('#0B0E14')
 
-ax1.plot(time_b, sp_b, "r--", label=f"Target Setpoint ({cfg['unit']})", linewidth=2)
-ax1.plot(time_b, pv_b, "b-", label=f"Process Variable ({cfg['unit']})", linewidth=2)
+for ax in (ax1, ax2):
+    ax.set_facecolor('#121824')
+    ax.tick_params(colors='#E0E6ED')
+    ax.xaxis.label.set_color('#00F2FE')
+    ax.yaxis.label.set_color('#00F2FE')
+    ax.spines['bottom'].set_color('#1E293B')
+    ax.spines['top'].set_color('#1E293B')
+    ax.spines['right'].set_color('#1E293B')
+    ax.spines['left'].set_color('#1E293B')
+    ax.grid(True, linestyle="--", color='#1E293B', alpha=0.7)
+
+ax1.plot(time_b, sp_b, color="#FF0055", linestyle="--", label=f"Target Setpoint ({cfg['unit']})", linewidth=2)
+ax1.plot(time_b, pv_b, color="#00F2FE", label=f"Process Variable ({cfg['unit']})", linewidth=2.5)
 ax1.set_ylabel(f"Process State ({cfg['unit']})")
-ax1.grid(True, linestyle="--", alpha=0.6)
-ax1.legend(loc="lower right")
+ax1.legend(loc="lower right", facecolor='#121824', edgecolor='#00F2FE', labelcolor='#E0E6ED')
 
-ax2.plot(time_b, u_b, "g-", label="Control Signal Output (%)", linewidth=1.5)
+ax2.plot(time_b, u_b, color="#00FF88", label="Control Signal Output (%)", linewidth=1.8)
 ax2.set_xlabel("Time (seconds)")
 ax2.set_ylabel("Actuation Duty Cycle (%)")
-ax2.grid(True, linestyle="--", alpha=0.6)
-ax2.legend(loc="lower right")
+ax2.legend(loc="lower right", facecolor='#121824', edgecolor='#00FF88', labelcolor='#E0E6ED')
 
-plt.suptitle(f"Dynamic Response & SCADA Telemetry: {process_type}", fontsize=12)
+plt.suptitle(f"Dynamic Response & SCADA Telemetry: {process_type}", fontsize=12, color='#00F2FE')
 st.pyplot(fig)
 
 # Data Actions
