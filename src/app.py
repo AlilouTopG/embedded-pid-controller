@@ -1,89 +1,132 @@
 import os
 import random
-import streamlit as st
+import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
+import streamlit as st
+import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 from supabase import create_client, Client
 
+# Page Configuration
 st.set_page_config(
-    page_title="Universal Industrial PID Platform & SCADA Twin",
-    page_icon="⚙️",
-    layout="wide"
+    page_title="SCADA Twin | Industrial PID Control Platform",
+    page_icon="⚡",
+    layout="wide",
+    initial_sidebar_state="expanded"
 )
 
 # ---------------------------------------------------------
-# CUSTOM PROFESSIONAL CYAN & DARK INDUSTRIAL THEME (CSS)
+# HIGH-END INDUSTRIAL SCADA UI (CYBER-CYAN THEME CSS)
 # ---------------------------------------------------------
 st.markdown("""
 <style>
-    /* Main Background & Text */
+    @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Inter:wght@300;400;600;800&display=swap');
+
+    html, body, [class*="css"] {
+        font-family: 'Inter', sans-serif;
+    }
+    
     .stApp {
-        background-color: #0B0E14;
-        color: #E0E6ED;
+        background: #06090E;
+        color: #C1C9D6;
     }
-    
-    /* Sidebar Styling */
+
     [data-testid="stSidebar"] {
-        background-color: #121824;
-        border-right: 1px solid #1E293B;
+        background-color: #0B1017;
+        border-right: 1px solid #16222F;
     }
-    
-    /* Headings & Accent Text */
-    h1, h2, h3, h4, .stCaption {
+
+    h1, h2, h3, h4 {
         color: #00F2FE !important;
-        font-family: 'Segoe UI', Roboto, sans-serif;
+        font-family: 'JetBrains Mono', monospace;
+        letter-spacing: -0.5px;
     }
-    
-    /* Buttons Styling */
+
+    /* Glassmorphism Metric Cards */
+    .metric-card {
+        background: rgba(15, 23, 36, 0.7);
+        border: 1px solid rgba(0, 242, 254, 0.15);
+        border-radius: 12px;
+        padding: 18px;
+        backdrop-filter: blur(10px);
+        box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+        transition: all 0.3s ease;
+    }
+    .metric-card:hover {
+        border-color: rgba(0, 242, 254, 0.5);
+        box-shadow: 0 0 15px rgba(0, 242, 254, 0.2);
+    }
+    .metric-label {
+        font-size: 0.85rem;
+        color: #64748B;
+        text-transform: uppercase;
+        font-weight: 600;
+    }
+    .metric-value {
+        font-size: 1.8rem;
+        font-weight: 800;
+        color: #00F2FE;
+        font-family: 'JetBrains Mono', monospace;
+    }
+    .metric-unit {
+        font-size: 0.9rem;
+        color: #94A3B8;
+    }
+
+    /* Neon Buttons */
     .stButton>button {
         background: linear-gradient(135deg, #00C6FF 0%, #0072FF 100%);
         color: #000000 !important;
-        font-weight: bold;
+        font-weight: 700;
         border: none;
-        border-radius: 6px;
-        padding: 0.5rem 1rem;
+        border-radius: 8px;
+        padding: 0.6rem 1.2rem;
         transition: all 0.3s ease;
+        width: 100%;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
     }
     .stButton>button:hover {
-        background: linear-gradient(135deg, #00F2FE 0%, #4FACFE 100%);
-        box-shadow: 0 0 12px rgba(0, 242, 254, 0.6);
-        color: #000000 !important;
+        background: linear-gradient(135deg, #00F2FE 0%, #3A7BD5 100%);
+        box-shadow: 0 0 20px rgba(0, 242, 254, 0.6);
+        transform: translateY(-1px);
     }
 
-    /* Metric Cards */
-    [data-testid="stMetricValue"] {
+    /* Status Indicator Badge */
+    .status-badge {
+        display: inline-block;
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-size: 0.75rem;
+        font-weight: 700;
+        text-transform: uppercase;
+    }
+    .status-optimal { background: rgba(0, 255, 136, 0.15); color: #00FF88; border: 1px solid #00FF88; }
+    .status-warning { background: rgba(255, 170, 0, 0.15); color: #FFAA00; border: 1px solid #FFAA00; }
+
+    /* Customizing Sliders & Selectboxes */
+    .stSlider > div { color: #00F2FE; }
+    div[data-baseweb="select"] > div {
+        background-color: #0F1724 !important;
+        border-color: #16222F !important;
         color: #00F2FE !important;
-        font-size: 1.8rem !important;
-    }
-    [data-testid="stMetric"] {
-        background-color: #161F30;
-        border: 1px solid #00F2FE33;
-        border-radius: 8px;
-        padding: 10px;
-    }
-
-    /* Inputs, Sliders, Selectboxes */
-    .stSelectbox, .stSlider, .stTextInput {
-        color: #00F2FE;
     }
 </style>
 """, unsafe_allow_html=True)
 
+# Supabase Initialization
 SUPABASE_URL = st.secrets.get("SUPABASE_URL", os.getenv("SUPABASE_URL", ""))
 SUPABASE_KEY = st.secrets.get("SUPABASE_KEY", os.getenv("SUPABASE_KEY", ""))
 
 @st.cache_resource
 def init_supabase():
     if not SUPABASE_URL or not SUPABASE_KEY:
-        st.warning("⚠️ Supabase Credentials missing in Secrets!")
         return None
     return create_client(SUPABASE_URL, SUPABASE_KEY)
 
 supabase = init_supabase()
 
-# ---------------------------------------------------------
-# STABLE SESSION MANAGEMENT (URL QUERY PARAMETERS)
-# ---------------------------------------------------------
+# Session Management
 if "user" not in st.session_state:
     st.session_state.user = None
 
@@ -98,54 +141,53 @@ if token_from_url and st.session_state.user is None and supabase:
     except Exception:
         st.query_params.clear()
 
-st.sidebar.title("🔐 Enterprise Auth Portal")
+# Sidebar Authentication Portal
+st.sidebar.markdown("## 🔐 AUTHENTICATION")
 
 if st.session_state.user is None:
-    auth_mode = st.sidebar.radio("Choose Action", ["Sign In", "Sign Up"])
+    auth_mode = st.sidebar.radio("Mode", ["Sign In", "Sign Up"])
     email = st.sidebar.text_input("Email")
     password = st.sidebar.text_input("Password", type="password")
 
-    if auth_mode == "Sign Up":
-        if st.sidebar.button("Create Account"):
-            try:
-                res = supabase.auth.sign_up({"email": email, "password": password})
-                st.sidebar.success("Account created! Check email or Sign In.")
-            except Exception as e:
-                st.sidebar.error(f"Error: {e}")
-    elif auth_mode == "Sign In":
-        if st.sidebar.button("Login"):
-            try:
-                res = supabase.auth.sign_in_with_password({"email": email, "password": password})
-                st.session_state.user = res.user
-                if res.session:
-                    st.query_params["session_token"] = res.session.access_token
-                st.rerun()
-            except Exception as e:
-                st.sidebar.error("Invalid Email or Password.")
+    if auth_mode == "Sign Up" and st.sidebar.button("Create Account"):
+        try:
+            supabase.auth.sign_up({"email": email, "password": password})
+            st.sidebar.success("Account Created! You can now Sign In.")
+        except Exception as e:
+            st.sidebar.error(f"Error: {e}")
+    elif auth_mode == "Sign In" and st.sidebar.button("Establish Link"):
+        try:
+            res = supabase.auth.sign_in_with_password({"email": email, "password": password})
+            st.session_state.user = res.user
+            if res.session:
+                st.query_params["session_token"] = res.session.access_token
+            st.rerun()
+        except Exception:
+            st.sidebar.error("Invalid Credentials.")
 else:
-    st.sidebar.success(f"Logged in as:\n**{st.session_state.user.email}**")
-    if st.sidebar.button("Logout"):
+    st.sidebar.markdown(f"🟢 **CONNECTED:** `{st.session_state.user.email}`")
+    if st.sidebar.button("Terminate Session"):
         supabase.auth.sign_out()
         st.query_params.clear()
         st.session_state.user = None
         st.rerun()
 
 if st.session_state.user is None:
-    st.title("🔒 Universal Industrial PID Control Platform")
-    st.info("Please Sign In or Create an Account from the sidebar to access the Multi-Process Simulator.")
+    st.title("⚡ NEXT-GEN SCADA & PID DIGITAL TWIN")
+    st.info("🔒 Authentication required to establish telemetry link with industrial twin.")
     st.stop()
 
 # ---------------------------------------------------------
-# MULTI-PROCESS CONFIGURATION & AUTO-TUNING
+# CONTROL PANEL & SYSTEM DYNAMICS
 # ---------------------------------------------------------
-st.title("⚙️ Universal Industrial PID Control Platform & Digital Twin")
-st.caption(f"Authenticated User ID: `{st.session_state.user.id}` | Architecture: **Multi-Physical Twin & RLS Secured**")
+st.markdown("<h1 style='text-align: center; margin-bottom: 0px;'>⚡ SCADA DIGITAL TWIN ENGINE</h1>", unsafe_allow_html=True)
+st.markdown("<p style='text-align: center; color: #64748B; margin-bottom: 25px;'>Industrial Closed-Loop Controller & High-Speed Dynamic Simulator</p>", unsafe_allow_html=True)
 
 st.sidebar.markdown("---")
-st.sidebar.subheader("🎛️ Process Dynamics & Control")
+st.sidebar.markdown("## 🎛️ PROCESS CONFIG")
 
 process_type = st.sidebar.selectbox(
-    "Select Industrial System",
+    "Active Process Loop",
     ["Thermal Furnace (°C)", "Liquid Level Tank (m)", "DC Motor Speed (RPM)", "Gas Tank Pressure (bar)"]
 )
 
@@ -155,38 +197,33 @@ configs = {
     "DC Motor Speed (RPM)": {"unit": "RPM", "default_sp": 1500.0, "max_sp": 3000.0, "a_factor": 15.0, "loss_factor": 0.5, "ku": 0.8, "tu": 1.2},
     "Gas Tank Pressure (bar)": {"unit": "bar", "default_sp": 6.0, "max_sp": 15.0, "a_factor": 0.05, "loss_factor": 0.01, "ku": 5.0, "tu": 15.0}
 }
-
 cfg = configs[process_type]
 
-# Auto-Tuner Assistant Expander
-with st.sidebar.expander("📐 Ziegler-Nichols Auto-Tuner Helper"):
-    st.markdown(f"Estimated parameters for **{process_type.split()[0]}**:")
-    ku = cfg["ku"]
-    tu = cfg["tu"]
-    st.caption(f"Ultimate Gain (Ku): {ku} | Ultimate Period (Tu): {tu}s")
-    if st.button("Apply Ziegler-Nichols PID"):
-        st.session_state["recommended_kp"] = round(0.6 * ku, 2)
-        st.session_state["recommended_ki"] = round(2.0 * (0.6 * ku) / tu, 2)
-        st.session_state["recommended_kd"] = round((0.6 * ku) * tu / 8.0, 2)
-        st.success("Values calculated! Adjust sliders below to match.")
+# Preset Tuning Buttons
+st.sidebar.markdown("### 🎯 Quick PID Presets")
+col_p1, col_p2 = st.sidebar.columns(2)
+if col_p1.button("Smooth PID"):
+    st.session_state.kp, st.session_state.ki, st.session_state.kd = 1.2, 0.1, 0.05
+if col_p2.button("Fast PID"):
+    st.session_state.kp, st.session_state.ki, st.session_state.kd = 4.5, 0.8, 0.3
 
 # Controller Sliders
-kp_default = st.session_state.get("recommended_kp", 2.5)
-ki_default = st.session_state.get("recommended_ki", 0.4)
-kd_default = st.session_state.get("recommended_kd", 0.1)
-
-Kp = st.sidebar.slider("Proportional Gain (Kp)", 0.0, 10.0, float(kp_default), 0.1)
-Ki = st.sidebar.slider("Integral Gain (Ki)", 0.0, 2.0, float(ki_default), 0.05)
-Kd = st.sidebar.slider("Derivative Gain (Kd)", 0.0, 2.0, float(kd_default), 0.01)
+st.sidebar.markdown("### 🛠️ PID Gains & Control")
+Kp = st.sidebar.slider("Proportional (Kp)", 0.0, 10.0, float(st.session_state.get("kp", 2.5)), 0.1)
+Ki = st.sidebar.slider("Integral (Ki)", 0.0, 2.0, float(st.session_state.get("ki", 0.4)), 0.05)
+Kd = st.sidebar.slider("Derivative (Kd)", 0.0, 2.0, float(st.session_state.get("kd", 0.1)), 0.01)
 target_setpoint = st.sidebar.slider(f"Target Setpoint ({cfg['unit']})", 0.0, cfg["max_sp"], cfg["default_sp"], 0.5)
 
 st.sidebar.markdown("---")
-st.sidebar.subheader("⚠️ Environmental Disturbance")
-enable_noise = st.sidebar.checkbox("Inject Process Noise / Turbulence")
-noise_level = st.sidebar.slider("Noise Amplitude (%)", 0.0, 5.0, 1.0, 0.2) if enable_noise else 0.0
+st.sidebar.markdown("## ⚙️ ADVANCED MODES")
+control_mode = st.sidebar.radio("Control Mode", ["Automatic (PID Closed-Loop)", "Manual Override (Direct Duty Cycle)"])
+manual_output = st.sidebar.slider("Manual Output Duty Cycle (%)", 0.0, 100.0, 50.0) if "Manual" in control_mode else 0.0
+
+enable_noise = st.sidebar.checkbox("Inject Environmental Turbulence")
+noise_level = st.sidebar.slider("Turbulence Intensity (%)", 0.0, 5.0, 1.2, 0.1) if enable_noise else 0.0
 
 # ---------------------------------------------------------
-# SIMULATION ENGINE & PHYSICS RESPONSE
+# SIMULATION ENGINE
 # ---------------------------------------------------------
 dt, steps = 0.05, 400
 prev_err, integral, pv_value = 0.0, 0.0, 0.0
@@ -195,12 +232,16 @@ time_b, pv_b, sp_b, u_b = [], [], [], []
 for step in range(steps):
     t = step * dt
     err = target_setpoint - pv_value
-    integral += 0.5 * Ki * dt * err
-    integral = max(0.0, min(100.0, integral))
-    deriv = Kd * (err - prev_err) / dt
-    u = max(0.0, min(100.0, (Kp * err + integral + deriv)))
-    prev_err = err
     
+    if "Automatic" in control_mode:
+        integral += 0.5 * Ki * dt * err
+        integral = max(0.0, min(100.0, integral))
+        deriv = Kd * (err - prev_err) / dt
+        u = max(0.0, min(100.0, (Kp * err + integral + deriv)))
+    else:
+        u = manual_output
+
+    prev_err = err
     noise = random.gauss(0, noise_level) if enable_noise else 0.0
     pv_value = max(0.0, pv_value + (u * cfg["a_factor"] - pv_value * cfg["loss_factor"]) * dt + noise)
     
@@ -209,78 +250,113 @@ for step in range(steps):
     sp_b.append(target_setpoint)
     u_b.append(u)
 
-# Telemetry Overview
-col1, col2, col3, col4 = st.columns(4)
-col1.metric("Active System", process_type.split()[0])
-col2.metric("Current PV", f"{pv_value:.2f} {cfg['unit']}")
-col3.metric("Target SP", f"{target_setpoint:.2f} {cfg['unit']}")
-col4.metric("Steady Error", f"{abs(target_setpoint - pv_value):.2f} {cfg['unit']}")
+# Performance Metrics Calculation
+max_pv = max(pv_b)
+overshoot = max(0.0, ((max_pv - target_setpoint) / target_setpoint) * 100) if target_setpoint > 0 else 0.0
+steady_error = abs(target_setpoint - pv_b[-1])
 
-# Real-time Visualizations (DARK CYAN THEME FOR MATPLOTLIB)
-fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 6), sharex=True)
-fig.patch.set_facecolor('#0B0E14')
+# ---------------------------------------------------------
+# DASHBOARD TELEMETRY DISPLAY
+# ---------------------------------------------------------
+m1, m2, m3, m4 = st.columns(4)
 
-for ax in (ax1, ax2):
-    ax.set_facecolor('#121824')
-    ax.tick_params(colors='#E0E6ED')
-    ax.xaxis.label.set_color('#00F2FE')
-    ax.yaxis.label.set_color('#00F2FE')
-    ax.spines['bottom'].set_color('#1E293B')
-    ax.spines['top'].set_color('#1E293B')
-    ax.spines['right'].set_color('#1E293B')
-    ax.spines['left'].set_color('#1E293B')
-    ax.grid(True, linestyle="--", color='#1E293B', alpha=0.7)
+with m1:
+    st.markdown(f"""
+    <div class="metric-card">
+        <div class="metric-label">Active System</div>
+        <div class="metric-value">{process_type.split()[0]}</div>
+        <div class="metric-unit">Industrial Loop</div>
+    </div>
+    """, unsafe_allow_html=True)
 
-ax1.plot(time_b, sp_b, color="#FF0055", linestyle="--", label=f"Target Setpoint ({cfg['unit']})", linewidth=2)
-ax1.plot(time_b, pv_b, color="#00F2FE", label=f"Process Variable ({cfg['unit']})", linewidth=2.5)
-ax1.set_ylabel(f"Process State ({cfg['unit']})")
-ax1.legend(loc="lower right", facecolor='#121824', edgecolor='#00F2FE', labelcolor='#E0E6ED')
+with m2:
+    st.markdown(f"""
+    <div class="metric-card">
+        <div class="metric-label">Current Process Value</div>
+        <div class="metric-value" style="color:#00F2FE;">{pv_b[-1]:.2f} <span class="metric-unit">{cfg['unit']}</span></div>
+        <div class="status-badge status-optimal">Live Telemetry</div>
+    </div>
+    """, unsafe_allow_html=True)
 
-ax2.plot(time_b, u_b, color="#00FF88", label="Control Signal Output (%)", linewidth=1.8)
-ax2.set_xlabel("Time (seconds)")
-ax2.set_ylabel("Actuation Duty Cycle (%)")
-ax2.legend(loc="lower right", facecolor='#121824', edgecolor='#00FF88', labelcolor='#E0E6ED')
+with m3:
+    st.markdown(f"""
+    <div class="metric-card">
+        <div class="metric-label">Max Overshoot</div>
+        <div class="metric-value" style="color:{'#FF0055' if overshoot > 15 else '#00FF88'};">{overshoot:.1f}%</div>
+        <div class="metric-unit">Transient Spike</div>
+    </div>
+    """, unsafe_allow_html=True)
 
-plt.suptitle(f"Dynamic Response & SCADA Telemetry: {process_type}", fontsize=12, color='#00F2FE')
-st.pyplot(fig)
+with m4:
+    st.markdown(f"""
+    <div class="metric-card">
+        <div class="metric-label">Steady State Error</div>
+        <div class="metric-value" style="color:{'#FFAA00' if steady_error > 1.0 else '#00FF88'};">{steady_error:.2f} <span class="metric-unit">{cfg['unit']}</span></div>
+        <div class="status-badge {'status-optimal' if steady_error < 1.0 else 'status-warning'}">Loop Precision</div>
+    </div>
+    """, unsafe_allow_html=True)
 
-# Data Actions
-df_telemetry = pd.DataFrame({"Time_s": time_b, "Setpoint": sp_b, "Process_Variable": pv_b, "Control_Signal": u_b})
-col_btn1, col_btn2 = st.columns(2)
+st.markdown("<br>", unsafe_allow_html=True)
 
-with col_btn1:
-    if st.button("💾 Save Calibration to Cloud Database"):
-        try:
-            data = {
-                "user_id": st.session_state.user.id,
-                "setpoint": target_setpoint,
-                "kp": Kp,
-                "ki": Ki,
-                "kd": Kd
-            }
-            supabase.table("pid_simulations").insert(data).execute()
-            st.success("Saved calibration telemetry to Supabase PostgreSQL!")
-        except Exception as e:
-            st.error(f"Failed to save data: {e}")
+# ---------------------------------------------------------
+# HIGH-TECH PLOTLY CHART
+# ---------------------------------------------------------
+fig = make_subplots(rows=2, cols=1, shared_xaxes=True, vertical_spacing=0.08, subplot_titles=("PROCESS VARIABLE vs SETPOINT", "ACTUATOR CONTROL OUTPUT (%)"))
 
-with col_btn2:
+# Plot 1: PV and SP
+fig.add_trace(go.Scatter(x=time_b, y=sp_b, mode='lines', name='Setpoint Target', line=dict(color='#FF0055', width=2, dash='dash')), row=1, col=1)
+fig.add_trace(go.Scatter(x=time_b, y=pv_b, mode='lines', name='Process Variable (PV)', line=dict(color='#00F2FE', width=3)), row=1, col=1)
+
+# Plot 2: Control Signal U
+fig.add_trace(go.Scatter(x=time_b, y=u_b, mode='lines', name='Control Signal (U)', line=dict(color='#00FF88', width=2), fill='tozeroy', fillcolor='rgba(0,255,136,0.05)'), row=2, col=1)
+
+fig.update_layout(
+    height=550,
+    paper_bgcolor='#06090E',
+    plot_bgcolor='#0B1017',
+    font=dict(color='#94A3B8', family='JetBrains Mono'),
+    margin=dict(l=20, r=20, t=40, b=20),
+    legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+)
+
+fig.update_xaxes(showgrid=True, gridwidth=1, gridcolor='#16222F', row=1, col=1)
+fig.update_xaxes(showgrid=True, gridwidth=1, gridcolor='#16222F', title_text="Time (Seconds)", row=2, col=1)
+fig.update_yaxes(showgrid=True, gridwidth=1, gridcolor='#16222F', title_text=f"State ({cfg['unit']})", row=1, col=1)
+fig.update_yaxes(showgrid=True, gridwidth=1, gridcolor='#16222F', title_text="Output Duty (%)", row=2, col=1)
+
+st.plotly_chart(fig, use_container_width=True)
+
+# ---------------------------------------------------------
+# DATA EXPORT & CLOUD LOGGING
+# ---------------------------------------------------------
+col_a, col_b = st.columns(2)
+
+with col_a:
+    if st.button("💾 SAVE RUN TO SUPABASE"):
+        if supabase:
+            try:
+                data = {"user_id": st.session_state.user.id, "setpoint": target_setpoint, "kp": Kp, "ki": Ki, "kd": Kd}
+                supabase.table("pid_simulations").insert(data).execute()
+                st.success("Telemetry successfully archived in cloud database!")
+            except Exception as e:
+                st.error(f"Failed to log run: {e}")
+
+with col_b:
+    df_telemetry = pd.DataFrame({"Time_s": time_b, "Setpoint": sp_b, "Process_Variable": pv_b, "Control_Signal": u_b})
     csv_data = df_telemetry.to_csv(index=False).encode("utf-8")
-    st.download_button("📥 Export Telemetry Run (CSV)", csv_data, f"pid_telemetry_{process_type.split()[0]}.csv", "text/csv")
+    st.download_button("📥 EXPORT TELEMETRY CSV", csv_data, f"scada_run_{process_type.split()[0]}.csv", "text/csv")
 
-# ---------------------------------------------------------
-# HISTORICAL SUPABASE LOGS DISPLAY
-# ---------------------------------------------------------
+# Historical Records Display
 st.markdown("---")
-st.subheader("📊 Historical Calibration Logs (Supabase RLS Protected)")
+st.markdown("### 📊 HISTORICAL CALIBRATION LOGS")
 
-if st.button("🔄 Fetch My Saved Runs"):
-    try:
-        response = supabase.table("pid_simulations").select("*").eq("user_id", st.session_state.user.id).execute()
-        logs = response.data
-        if logs:
-            df_logs = pd.DataFrame(logs)
-            st.dataframe(df_logs[["id", "created_at", "setpoint", "kp", "ki", "kd"]], use_container_width=True)
-        else:
-            st.info("No prior simulation logs found for your account.")
-    except Exception as e:
-        st.error(f"Error fetching logs: {e}")
+if st.button("🔄 FETCH RECENT CLOUD LOGS"):
+    if supabase:
+        try:
+            res = supabase.table("pid_simulations").select("*").eq("user_id", st.session_state.user.id).execute()
+            if res.data:
+                st.dataframe(pd.DataFrame(res.data)[["id", "created_at", "setpoint", "kp", "ki", "kd"]], use_container_width=True)
+            else:
+                st.info("No logs recorded for this account yet.")
+        except Exception as e:
+            st.error(f"Cloud fetch error: {e}")

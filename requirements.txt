@@ -4,3 +4,4 @@ pandas
 pytest
 supabase
 extra-streamlit-components
+plotly
