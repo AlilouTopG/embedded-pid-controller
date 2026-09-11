@@ -1,6 +1,7 @@
 import os
 import json
 import time
+import hashlib
 import datetime
 import numpy as np
 import pandas as pd
@@ -8,7 +9,6 @@ import streamlit as st
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 from supabase import create_client
-from extra_streamlit_components import CookieManager
 
 # ============================================================================
 # PAGE CONFIGURATION
@@ -21,9 +21,34 @@ st.set_page_config(
 )
 
 # ============================================================================
-# COOKIE MANAGER INITIALIZATION
+# SESSION TOKEN HELPERS
 # ============================================================================
-cookie_manager = CookieManager(key="nexus_cookie_manager")
+def _make_session_token(user_id, email):
+    raw = "{}:{}:{}".format(user_id, email, int(time.time()))
+    return hashlib.sha256(raw.encode()).hexdigest()[:48]
+
+def _save_session_to_query(user_data, role):
+    token = _make_session_token(user_data["id"], user_data["email"])
+    st.session_state["session_token"] = token
+    st.session_state["session_user_id"] = user_data["id"]
+    st.session_state["session_email"] = user_data["email"]
+    st.session_state["session_role"] = role
+    st.query_params["session_token"] = token
+
+def _load_session_from_query():
+    token = st.query_params.get("session_token", None)
+    if token and token == st.session_state.get("session_token"):
+        return {
+            "id": st.session_state.get("session_user_id", ""),
+            "email": st.session_state.get("session_email", ""),
+            "role": st.session_state.get("session_role", "Control Engineer")
+        }
+    return None
+
+def _clear_session():
+    for k in list(st.session_state.keys()):
+        del st.session_state[k]
+    st.query_params.clear()
 
 # ============================================================================
 # ULTRA-PREMIUM CINEMATIC CSS THEME
@@ -418,54 +443,24 @@ if 'mqtt_client' not in st.session_state:
     st.session_state.mqtt_client = None
 
 # ============================================================================
-# COOKIE-BASED SESSION PERSISTENCE
+# QUERY-PARAM-BASED SESSION PERSISTENCE
 # ============================================================================
-def save_session_to_cookies(user_data, role):
-    """Save session data to browser cookies for persistence across refreshes."""
-    session_payload = {
-        "email": user_data.get("email", ""),
-        "id": user_data.get("id", ""),
-        "role": role,
-        "timestamp": time.time()
-    }
-    cookie_manager.set(
-        cookie="nexus_session",
-        val=json.dumps(session_payload),
-        max_age_days=7
-    )
-
-def load_session_from_cookies():
-    """Load session data from browser cookies on page refresh."""
-    try:
-        session_cookie = cookie_manager.get(cookie="nexus_session")
-        if session_cookie:
-            data = json.loads(session_cookie)
-            if data.get("email") and data.get("id"):
-                return data
-    except Exception:
-        pass
-    return None
-
-def clear_session_cookies():
-    """Clear session cookies on logout."""
-    cookie_manager.delete(cookie="nexus_session")
-
-def restore_session_from_cookies():
-    """Attempt to restore user session from cookies on app rerun."""
+def restore_session_from_query_params():
+    """Attempt to restore user session from query params on page refresh."""
     if st.session_state.user is None and not st.session_state.authenticated:
-        saved_session = load_session_from_cookies()
-        if saved_session:
+        saved = _load_session_from_query()
+        if saved:
             st.session_state.user = type('obj', (object,), {
-                'email': saved_session["email"],
-                'id': saved_session["id"]
+                'email': saved["email"],
+                'id': saved["id"]
             })()
-            st.session_state.user_role = saved_session.get("role", "Control Engineer")
+            st.session_state.user_role = saved["role"]
             st.session_state.authenticated = True
             return True
     return False
 
 # Attempt to restore session on page load
-restore_session_from_cookies()
+restore_session_from_query_params()
 
 # ============================================================================
 # RBAC ROLE DEFINITIONS
@@ -553,7 +548,7 @@ def render_auth_portal():
                         st.session_state.user = type('obj', (object,), user_data)()
                         st.session_state.user_role = role_selection
                         st.session_state.authenticated = True
-                        save_session_to_cookies(user_data, role_selection)
+                        _save_session_to_query(user_data, role_selection)
                         st.rerun()
                     except Exception:
                         st.error("Authentication failed. Verify credentials.")
@@ -562,7 +557,7 @@ def render_auth_portal():
                     st.session_state.user = type('obj', (object,), user_data)()
                     st.session_state.user_role = role_selection
                     st.session_state.authenticated = True
-                    save_session_to_cookies(user_data, role_selection)
+                    _save_session_to_query(user_data, role_selection)
                     st.rerun()
     st.stop()
 
@@ -1076,9 +1071,7 @@ with st.sidebar:
     if st.button("Sign Out", use_container_width=True):
         if supabase:
             supabase.auth.sign_out()
-        clear_session_cookies()
-        st.session_state.user = None
-        st.session_state.authenticated = False
+        _clear_session()
         st.rerun()
     
     st.markdown('<div class="tactical-divider"></div>', unsafe_allow_html=True)
