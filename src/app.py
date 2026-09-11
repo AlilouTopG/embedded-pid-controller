@@ -448,6 +448,20 @@ if 'mqtt_client' not in st.session_state:
 def restore_session_from_query_params():
     """Attempt to restore user session from query params on page refresh."""
     if st.session_state.user is None and not st.session_state.authenticated:
+        # Check for demo_role first
+        demo_role = st.query_params.get("demo_role", None)
+        if demo_role:
+            role_map = {"engineer": "Control Engineer", "operator": "Operator", "admin": "Plant Admin"}
+            resolved_role = role_map.get(demo_role, "Control Engineer")
+            st.session_state.user = type('obj', (object,), {
+                'email': "demo@nexus.local",
+                'id': "demo_user"
+            })()
+            st.session_state.user_role = resolved_role
+            st.session_state.authenticated = True
+            return True
+
+        # Check for session_token
         saved = _load_session_from_query()
         if saved:
             st.session_state.user = type('obj', (object,), {
@@ -559,6 +573,33 @@ def render_auth_portal():
                     st.session_state.authenticated = True
                     _save_session_to_query(user_data, role_selection)
                     st.rerun()
+
+        st.markdown('<div class="tactical-divider"></div>', unsafe_allow_html=True)
+        st.markdown('<div class="section-header">Quick Access / Demo Mode</div>', unsafe_allow_html=True)
+        st.markdown('<p style="font-size:11px;color:#8892A4;margin-bottom:12px;">Skip Supabase - instant entry</p>', unsafe_allow_html=True)
+
+        col_demo1, col_demo2 = st.columns(2)
+        with col_demo1:
+            if st.button("Enter as Engineer", use_container_width=True, key="demo_engineer"):
+                st.session_state.user = type('obj', (object,), {
+                    'email': "demo@nexus.local",
+                    'id': "demo_user"
+                })()
+                st.session_state.user_role = "Control Engineer"
+                st.session_state.authenticated = True
+                st.query_params["demo_role"] = "engineer"
+                st.rerun()
+        with col_demo2:
+            if st.button("Enter as Operator", use_container_width=True, key="demo_operator"):
+                st.session_state.user = type('obj', (object,), {
+                    'email': "demo@nexus.local",
+                    'id': "demo_user"
+                })()
+                st.session_state.user_role = "Operator"
+                st.session_state.authenticated = True
+                st.query_params["demo_role"] = "operator"
+                st.rerun()
+
     st.stop()
 
 if st.session_state.user is None:
