@@ -1,114 +1,95 @@
 import os
-import pandas as pd
 import streamlit as st
+import pandas as pd
 import matplotlib.pyplot as plt
+from supabase import create_client, Client
 
-st.set_page_config(
-    page_title="Industrial PID Simulation Platform",
-    page_icon="",
-    layout="wide"
-)
+st.set_page_config(page_title='Industrial PID Controller', page_icon='🛡️', layout='wide')
 
-# ---------------------------------------------------------
-# 1. ROLE-BASED ACCESS CONTROL (RBAC) SIMULATION
-# ---------------------------------------------------------
-st.sidebar.title("Enterprise Portal")
-user_role = st.sidebar.selectbox("Select User Role", ["Operator (Read-Only Tuning)", "Control Engineer (Full Access)"])
+SUPABASE_URL = st.secrets.get('SUPABASE_URL', os.getenv('SUPABASE_URL', ''))
+SUPABASE_KEY = st.secrets.get('SUPABASE_KEY', os.getenv('SUPABASE_KEY', ''))
 
-if user_role == "Control Engineer (Full Access)":
-    st.sidebar.success("Mode: Full Calibration Enabled")
-    Kp_val = st.sidebar.slider("Proportional Gain (Kp)", 0.0, 10.0, 2.8, 0.1)
-    Ki_val = st.sidebar.slider("Integral Gain (Ki)", 0.0, 2.0, 0.45, 0.05)
-    Kd_val = st.sidebar.slider("Derivative Gain (Kd)", 0.0, 2.0, 0.18, 0.01)
+@st.cache_resource
+def init_supabase():
+    if not SUPABASE_URL or not SUPABASE_KEY:
+        st.warning('⚠️ Supabase Credentials missing in Secrets!')
+        return None
+    return create_client(SUPABASE_URL, SUPABASE_KEY)
+
+supabase = init_supabase()
+
+if 'user' not in st.session_state:
+    st.session_state.user = None
+
+st.sidebar.title('🔐 Account Access')
+
+if st.session_state.user is None:
+    auth_mode = st.sidebar.radio('Choose Action', ['Sign In', 'Sign Up'])
+    email = st.sidebar.text_input('Email')
+    password = st.sidebar.text_input('Password', type='password')
+
+    if auth_mode == 'Sign Up':
+        if st.sidebar.button('Create Account'):
+            try:
+                res = supabase.auth.sign_up({'email': email, 'password': password})
+                st.sidebar.success('Account created! Check email or Sign In.')
+            except Exception as e:
+                st.sidebar.error(f'Error: {e}')
+    elif auth_mode == 'Sign In':
+        if st.sidebar.button('Login'):
+            try:
+                res = supabase.auth.sign_in_with_password({'email': email, 'password': password})
+                st.session_state.user = res.user
+                st.rerun()
+            except Exception as e:
+                st.sidebar.error('Invalid Email or Password.')
 else:
-    st.sidebar.info("Mode: Operator (Fixed PID Parameters)")
-    Kp_val, Ki_val, Kd_val = 2.8, 0.45, 0.18
-    st.sidebar.caption(f"Locked Gains -> Kp: {Kp_val} | Ki: {Ki_val} | Kd: {Kd_val}")
+    st.sidebar.success(f'Logged in as:\n**{st.session_state.user.email}**')
+    if st.sidebar.button('Logout'):
+        supabase.auth.sign_out()
+        st.session_state.user = None
+        st.rerun()
 
-st.sidebar.markdown("---")
-target_setpoint = st.sidebar.slider("Target Setpoint (m)", 1.0, 20.0, 10.0, 0.5)
-sim_time = st.sidebar.slider("Simulation Duration (s)", 10, 100, 40, 5)
+if st.session_state.user is None:
+    st.title('🔒 Industrial PID Controller Platform')
+    st.info('Please Sign In or Create a Real Account from the sidebar to access the simulator.')
+    st.stop()
 
-# ---------------------------------------------------------
-# 2. PID & TANK ENGINE
-# ---------------------------------------------------------
-class PIDController:
-    def __init__(self, Kp, Ki, Kd, dt=0.05):
-        self.Kp, self.Ki, self.Kd = Kp, Ki, Kd
-        self.dt = dt
-        self.prev_error = 0.0
-        self.integral = 0.0
+st.title('⚙️ Industrial PID Digital Twin (RLS Secured)')
+st.caption(f'Authenticated User ID: {st.session_state.user.id}')
 
-    def update(self, setpoint, measurement):
-        error = setpoint - measurement
-        p = self.Kp * error
-        self.integral += 0.5 * self.Ki * self.dt * (error + self.prev_error)
-        self.integral = max(0.0, min(100.0, self.integral))
-        d = self.Kd * (error - self.prev_error) / self.dt
-        self.prev_error = error
-        return max(0.0, min(100.0, p + self.integral + d))
+Kp = st.sidebar.slider('Proportional Gain (Kp)', 0.0, 10.0, 2.8, 0.1)
+Ki = st.sidebar.slider('Integral Gain (Ki)', 0.0, 2.0, 0.45, 0.05)
+Kd = st.sidebar.slider('Derivative Gain (Kd)', 0.0, 2.0, 0.18, 0.01)
+target_setpoint = st.sidebar.slider('Target Water Level (m)', 1.0, 20.0, 10.0, 0.5)
 
-class TankSystem:
-    def __init__(self):
-        self.level = 0.0
+dt, steps = 0.05, 400
+prev_err, integral, level = 0.0, 0.0, 0.0
+time_b, level_b, sp_b = [], [], []
 
-    def update(self, pump_in, dt=0.05):
-        inflow = pump_in * 0.12
-        outflow = self.level * 0.03
-        self.level = max(0.0, (self.level + (inflow - outflow) * dt))
-
-# Run Simulation
-dt = 0.05
-steps = int(sim_time / dt)
-pid = PIDController(Kp_val, Ki_val, Kd_val, dt)
-tank = TankSystem()
-
-time_b, level_b, sp_b, out_b = [], [], [], []
 for step in range(steps):
     t = step * dt
-    u = pid.update(target_setpoint, tank.level)
-    tank.update(u, dt)
+    err = target_setpoint - level
+    integral += 0.5 * Ki * dt * err
+    deriv = Kd * (err - prev_err) / dt
+    u = max(0.0, min(100.0, (Kp * err + integral + deriv)))
+    prev_err = err
+    level = max(0.0, level + (u * 0.12 - level * 0.03) * dt)
     time_b.append(t)
-    level_b.append(tank.level)
+    level_b.append(level)
     sp_b.append(target_setpoint)
-    out_b.append(u)
 
-# Dataframe for telemetry
-df_telemetry = pd.DataFrame({
-    "Time_s": time_b,
-    "Setpoint_m": sp_b,
-    "Water_Level_m": level_b,
-    "Control_Output_Pct": out_b
-})
-
-st.title("Industrial PID Controller & Asset Digital Twin")
-st.caption("Production Ready Engine | Developed by **Ali Nasreddine Benseffa**")
-
-# Visual Metrics
-col1, col2, col3, col4 = st.columns(4)
-col1.metric("Current Level", f"{tank.level:.2f} m")
-col2.metric("Target Level", f"{target_setpoint:.2f} m")
-col3.metric("Error", f"{abs(target_setpoint - tank.level):.3f} m")
-col4.metric("Role Logged", user_role.split()[0])
-
-# Real-time Plots
-fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 5))
-ax1.plot(time_b, sp_b, 'r--', label='Target Setpoint (m)')
-ax1.plot(time_b, level_b, 'b-', label='Process Variable (m)')
-ax1.grid(True)
-ax1.legend()
-
-ax2.plot(time_b, out_b, 'g-', label='Control Signal Output (%)')
-ax2.grid(True)
-ax2.legend()
-
+fig, ax = plt.subplots(figsize=(10, 4))
+ax.plot(time_b, sp_b, 'r--', label='Target Setpoint')
+ax.plot(time_b, level_b, 'b-', label='Water Level')
+ax.grid(True)
+ax.legend()
 st.pyplot(fig)
 
-# Data Export Feature
-st.markdown("### Operational Telemetry Data")
-st.download_button(
-    label="Export Simulation CSV Report",
-    data=df_telemetry.to_csv(index=False),
-    file_name="pid_simulation_telemetry.csv",
-    mime="text/csv"
-)
+if st.button('💾 Save Simulation Run to Cloud Database'):
+    try:
+        data = {'user_id': st.session_state.user.id, 'setpoint': target_setpoint, 'kp': Kp, 'ki': Ki, 'kd': Kd}
+        supabase.table('pid_simulations').insert(data).execute()
+        st.success('Successfully saved run with Row Level Security enforcement!')
+    except Exception as e:
+        st.error(f'Failed to save data: {e}')
