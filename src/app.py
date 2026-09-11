@@ -1,25 +1,15 @@
 import os
 import random
-import time
 import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
 from supabase import create_client, Client
-import extra_streamlit_components as stx
 
 st.set_page_config(
     page_title="Universal Industrial PID Platform & SCADA Twin",
     page_icon="⚙️",
     layout="wide"
 )
-
-# ---------------------------------------------------------
-# RELIABLE COOKIE & SESSION MANAGEMENT
-# ---------------------------------------------------------
-cookie_manager = stx.CookieManager(key="init_cookie_manager")
-
-# Fetch all cookies into state
-cookies = cookie_manager.get_all()
 
 SUPABASE_URL = st.secrets.get("SUPABASE_URL", os.getenv("SUPABASE_URL", ""))
 SUPABASE_KEY = st.secrets.get("SUPABASE_KEY", os.getenv("SUPABASE_KEY", ""))
@@ -33,19 +23,23 @@ def init_supabase():
 
 supabase = init_supabase()
 
+# ---------------------------------------------------------
+# STABLE SESSION MANAGEMENT (URL QUERY PARAMETERS)
+# ---------------------------------------------------------
 if "user" not in st.session_state:
     st.session_state.user = None
 
-# Extract session token from cookies with fallback handling
-session_token = cookies.get("sb_session_token") if isinstance(cookies, dict) else None
+# Check for session token in URL query params on Refresh
+query_params = st.query_params
+token_from_url = query_params.get("session_token", None)
 
-if session_token and st.session_state.user is None and supabase:
+if token_from_url and st.session_state.user is None and supabase:
     try:
-        res = supabase.auth.get_user(session_token)
+        res = supabase.auth.get_user(token_from_url)
         if res and res.user:
             st.session_state.user = res.user
     except Exception:
-        cookie_manager.delete("sb_session_token", key="cleanup_invalid_token")
+        st.query_params.clear()
 
 st.sidebar.title("🔐 Enterprise Auth Portal")
 
@@ -67,9 +61,8 @@ if st.session_state.user is None:
                 res = supabase.auth.sign_in_with_password({"email": email, "password": password})
                 st.session_state.user = res.user
                 if res.session:
-                    # Save token in cookies valid for 7 days
-                    cookie_manager.set("sb_session_token", res.session.access_token, key="set_session_token")
-                    time.sleep(0.2)
+                    # Save token directly to URL params so Refresh preserves session
+                    st.query_params["session_token"] = res.session.access_token
                 st.rerun()
             except Exception as e:
                 st.sidebar.error("Invalid Email or Password.")
@@ -77,9 +70,8 @@ else:
     st.sidebar.success(f"Logged in as:\n**{st.session_state.user.email}**")
     if st.sidebar.button("Logout"):
         supabase.auth.sign_out()
-        cookie_manager.delete("sb_session_token", key="delete_session_token")
+        st.query_params.clear()
         st.session_state.user = None
-        time.sleep(0.2)
         st.rerun()
 
 if st.session_state.user is None:
