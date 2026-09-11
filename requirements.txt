@@ -2,7 +2,6 @@ streamlit
 pandas
 numpy
 supabase
-extra-streamlit-components
 plotly
 paho-mqtt
 pyserial
