@@ -3,3 +3,4 @@ matplotlib
 pandas
 pytest
 supabase
+extra-streamlit-components

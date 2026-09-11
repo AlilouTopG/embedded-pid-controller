@@ -4,12 +4,22 @@ import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
 from supabase import create_client, Client
+import extra_streamlit_components as stx
 
 st.set_page_config(
     page_title="Universal Industrial PID Platform & SCADA Twin",
     page_icon="⚙️",
     layout="wide"
 )
+
+# ---------------------------------------------------------
+# COOKIE MANAGER FOR PERSISTENT AUTH
+# ---------------------------------------------------------
+@st.cache_resource(experimental_allow_widgets=True)
+def get_cookie_manager():
+    return stx.CookieManager()
+
+cookie_manager = get_cookie_manager()
 
 SUPABASE_URL = st.secrets.get("SUPABASE_URL", os.getenv("SUPABASE_URL", ""))
 SUPABASE_KEY = st.secrets.get("SUPABASE_KEY", os.getenv("SUPABASE_KEY", ""))
@@ -23,8 +33,19 @@ def init_supabase():
 
 supabase = init_supabase()
 
+# Restore session from Cookie if available
+session_token = cookie_manager.get(cookie="sb_session_token")
+
 if "user" not in st.session_state:
     st.session_state.user = None
+
+if session_token and st.session_state.user is None:
+    try:
+        res = supabase.auth.get_user(session_token)
+        if res and res.user:
+            st.session_state.user = res.user
+    except Exception:
+        cookie_manager.delete("sb_session_token")
 
 st.sidebar.title("🔐 Enterprise Auth Portal")
 
@@ -45,6 +66,8 @@ if st.session_state.user is None:
             try:
                 res = supabase.auth.sign_in_with_password({"email": email, "password": password})
                 st.session_state.user = res.user
+                if res.session:
+                    cookie_manager.set("sb_session_token", res.session.access_token, key="set_token")
                 st.rerun()
             except Exception as e:
                 st.sidebar.error("Invalid Email or Password.")
@@ -52,6 +75,7 @@ else:
     st.sidebar.success(f"Logged in as:\n**{st.session_state.user.email}**")
     if st.sidebar.button("Logout"):
         supabase.auth.sign_out()
+        cookie_manager.delete("sb_session_token", key="del_token")
         st.session_state.user = None
         st.rerun()
 
