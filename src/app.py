@@ -15,10 +15,7 @@ st.set_page_config(
 # ---------------------------------------------------------
 # COOKIE MANAGER FOR PERSISTENT AUTH
 # ---------------------------------------------------------
-@st.cache_resource
-def get_cookie_manager():
-    return stx.CookieManager()
-cookie_manager = get_cookie_manager()
+cookie_manager = stx.CookieManager()
 
 SUPABASE_URL = st.secrets.get("SUPABASE_URL", os.getenv("SUPABASE_URL", ""))
 SUPABASE_KEY = st.secrets.get("SUPABASE_KEY", os.getenv("SUPABASE_KEY", ""))
