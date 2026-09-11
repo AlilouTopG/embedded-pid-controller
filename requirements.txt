@@ -5,4 +5,5 @@ supabase
 plotly
 paho-mqtt
 pyserial
+pymodbus>=3.5.0
 pytest

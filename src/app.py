@@ -9,6 +9,7 @@ import streamlit as st
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 from supabase import create_client
+from modbus_client import modbus_gateway
 
 # ============================================================================
 # PAGE CONFIGURATION
@@ -1118,7 +1119,12 @@ with st.sidebar:
     st.markdown('<div class="tactical-divider"></div>', unsafe_allow_html=True)
 
     st.markdown('<div class="section-header">Data Source</div>', unsafe_allow_html=True)
-    data_source_options = ["Digital Twin Engine (Simulator)", "Local Hardware Gateway (Serial/USB)", "Industrial IoT Gateway (MQTT)"]
+    data_source_options = [
+        "Digital Twin Engine (Simulator)",
+        "Local Hardware Gateway (Serial/USB)",
+        "Industrial IoT Gateway (MQTT)",
+        "Modbus TCP Gateway (PLC)"
+    ]
     data_source_disabled = not perms["can_change_data_source"] and st.session_state.user_role != "Plant Admin"
     data_source = st.radio("Source", data_source_options, label_visibility="collapsed", disabled=data_source_disabled)
 
@@ -1140,6 +1146,37 @@ with st.sidebar:
                 st.session_state.mqtt_connected = False
                 st.rerun()
         st.markdown('</div>', unsafe_allow_html=True)
+
+    if data_source == "Modbus TCP Gateway (PLC)":
+        st.markdown("""
+        <div style="background:rgba(15,22,35,0.6);border:1px solid rgba(255,255,255,0.08);
+                    border-radius:8px;padding:12px;margin-top:8px;">
+            <div style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#00F2FE;
+                        margin-bottom:8px;">MODBUS TCP CONFIGURATION</div>
+        </div>
+        """, unsafe_allow_html=True)
+        modbus_host = st.text_input("PLC IP Address", value="127.0.0.1", key="modbus_host")
+        modbus_port = st.number_input("Port", value=502, key="modbus_port")
+        modbus_slave = st.number_input("Slave/Unit ID", value=1, min_value=1, max_value=247, key="modbus_slave")
+        modbus_reg = st.number_input("Holding Register Address", value=0, min_value=0, max_value=65535, key="modbus_reg")
+        modbus_scale = st.number_input("Scale Factor (raw / this = value)", value=10.0, min_value=0.1, step=0.5, key="modbus_scale")
+        write_enabled = perms["can_tune_pid"] or perms["can_change_data_source"]
+        if write_enabled:
+            modbus_write_reg = st.number_input("Write Register Address", value=1, min_value=0, max_value=65535, key="modbus_write_reg")
+            modbus_write_val = st.number_input("Write Value", value=0.0, step=1.0, key="modbus_write_val")
+        col_mb1, col_mb2 = st.columns(2)
+        with col_mb1:
+            if st.button("Connect", key="modbus_connect"):
+                modbus_gateway.connect(modbus_host, modbus_port, modbus_slave, modbus_reg, modbus_scale)
+                st.rerun()
+        with col_mb2:
+            if st.button("Disconnect", key="modbus_disconnect"):
+                modbus_gateway.disconnect()
+                st.rerun()
+        if write_enabled:
+            if st.button("Write Register", key="modbus_write"):
+                modbus_gateway.write_holding_register(modbus_write_reg, modbus_write_val)
+                st.rerun()
 
     st.markdown('<div class="tactical-divider"></div>', unsafe_allow_html=True)
     
@@ -1212,7 +1249,7 @@ with st.sidebar:
 # ============================================================================
 # HEADER BAR
 # ============================================================================
-source_label = "SIMULATION" if "Digital Twin" in data_source else ("HARDWARE" if "Hardware" in data_source else "MQTT")
+source_label = "SIMULATION" if "Digital Twin" in data_source else ("HARDWARE" if "Hardware" in data_source else ("MQTT" if "MQTT" in data_source else "MODBUS"))
 
 st.markdown("""
 <div class="header-bar">
@@ -1270,6 +1307,19 @@ if "MQTT" in data_source:
                mqtt_status.upper(), mqtt_gateway.messages_received),
                unsafe_allow_html=True)
 
+if "Modbus" in data_source:
+    modbus_status = "connected" if modbus_gateway.connected else "disconnected"
+    st.markdown("""
+    <div class="hw-status-bar">
+        <div class="hw-status-dot {}"></div>
+        <span style="color: #8892A4;">MODBUS TCP:</span>
+        <span style="color: {};">{}</span>
+        <span style="color: #8892A4; margin-left: auto;">READS: {}/{} OK/FAIL</span>
+    </div>
+    """.format(modbus_status, '#00FF88' if modbus_gateway.connected else '#FF3366',
+               modbus_status.upper(), modbus_gateway.reads_ok, modbus_gateway.reads_failed),
+               unsafe_allow_html=True)
+
 for step in range(steps):
     t = step * dt
     
@@ -1286,6 +1336,14 @@ for step in range(steps):
         if mqtt_sample:
             pv_measured = mqtt_sample["pv"]
             u = mqtt_sample["u"]
+        else:
+            pv_measured = 0.0
+            u = manual_duty if control_mode == "Manual Override" else 0.0
+    elif "Modbus" in data_source:
+        modbus_sample = modbus_gateway.read_sample()
+        if modbus_sample:
+            pv_measured = modbus_sample["pv"]
+            u = modbus_sample["u"]
         else:
             pv_measured = 0.0
             u = manual_duty if control_mode == "Manual Override" else 0.0
