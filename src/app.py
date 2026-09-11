@@ -448,28 +448,38 @@ class PIDEngine:
 # PERFORMANCE ANALYTICS
 # ============================================================================
 def calculate_kpis(time_arr, error_arr, setpoint, pv_arr, output_arr):
-    dt = time_arr[1] - time_arr[0] if len(time_arr) > 1 else 0.05
-    
-    iae = np.sum(np.abs(error_arr)) * dt
-    ise = np.sum(np.array(error_arr)**2) * dt
-    
-    max_pv = max(pv_arr)
-    overshoot = max(0, ((max_pv - setpoint) / setpoint * 100)) if setpoint > 0 else 0
-    
-    steady_state_error = abs(error_arr[-1]) if len(error_arr) > 0 else 0
-    
-    settling_time = time_arr[-1]
-    for i in range(len(pv_arr) - 1, -1, -1):
-        if abs(pv_arr[i] - setpoint) > 0.02 * setpoint if setpoint > 0 else 0.1:
-            settling_time = time_arr[min(i + 1, len(time_arr) - 1)]
+    n = len(time_arr)
+    if n == 0:
+        return {
+            "IAE": 0.0, "ISE": 0.0, "Overshoot": 0.0,
+            "Settling Time": 0.0, "Rise Time": 0.0,
+            "Steady-State Error": 0.0, "Final PV": 0.0, "Final Output": 0.0
+        }
+
+    dt_val = float(time_arr[1] - time_arr[0]) if n > 1 else 0.05
+
+    iae = float(np.sum(np.abs(error_arr))) * dt_val
+    ise = float(np.sum(np.power(error_arr, 2))) * dt_val
+
+    max_pv = float(np.max(pv_arr))
+    overshoot = max(0.0, ((max_pv - setpoint) / setpoint * 100.0)) if setpoint > 0 else 0.0
+
+    steady_state_error = float(abs(error_arr[-1]))
+
+    threshold = 0.02 * setpoint if setpoint > 0 else 0.1
+    settling_time = float(time_arr[-1])
+    for i in range(n - 1, -1, -1):
+        if abs(float(pv_arr[i]) - setpoint) > threshold:
+            settling_time = float(time_arr[min(i + 1, n - 1)])
             break
-    
-    rise_time = 0
-    for i, pv in enumerate(pv_arr):
-        if pv >= 0.9 * setpoint if setpoint > 0 else pv >= 0.9:
-            rise_time = time_arr[i]
+
+    rise_threshold = 0.9 * setpoint if setpoint > 0 else 0.9
+    rise_time = 0.0
+    for i in range(n):
+        if float(pv_arr[i]) >= rise_threshold:
+            rise_time = float(time_arr[i])
             break
-    
+
     return {
         "IAE": round(iae, 3),
         "ISE": round(ise, 3),
@@ -477,8 +487,8 @@ def calculate_kpis(time_arr, error_arr, setpoint, pv_arr, output_arr):
         "Settling Time": round(settling_time, 2),
         "Rise Time": round(rise_time, 2),
         "Steady-State Error": round(steady_state_error, 4),
-        "Final PV": round(pv_arr[-1], 2) if pv_arr else 0,
-        "Final Output": round(output_arr[-1], 2) if output_arr else 0
+        "Final PV": round(float(pv_arr[-1]), 2),
+        "Final Output": round(float(output_arr[-1]), 2)
     }
 
 # ============================================================================
