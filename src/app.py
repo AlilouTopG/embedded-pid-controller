@@ -1,143 +1,114 @@
 import os
+import pandas as pd
 import streamlit as st
 import matplotlib.pyplot as plt
 
-# Page Configuration & Security Headers Simulation
 st.set_page_config(
-    page_title="Industrial PID Controller Simulator (Secured)",
+    page_title="Industrial PID Simulation Platform",
     page_icon="",
-    layout="wide",
-    initial_sidebar_state="expanded"
+    layout="wide"
 )
 
-# Hide Streamlit Default Footers & Main Menu for hardening
-hide_st_style = """
-            <style>
-            #MainMenu {visibility: hidden;}
-            footer {visibility: hidden;}
-            header {visibility: hidden;}
-            </style>
-            """
-st.markdown(hide_st_style, unsafe_allow_html=True)
+# ---------------------------------------------------------
+# 1. ROLE-BASED ACCESS CONTROL (RBAC) SIMULATION
+# ---------------------------------------------------------
+st.sidebar.title("Enterprise Portal")
+user_role = st.sidebar.selectbox("Select User Role", ["Operator (Read-Only Tuning)", "Control Engineer (Full Access)"])
+
+if user_role == "Control Engineer (Full Access)":
+    st.sidebar.success("Mode: Full Calibration Enabled")
+    Kp_val = st.sidebar.slider("Proportional Gain (Kp)", 0.0, 10.0, 2.8, 0.1)
+    Ki_val = st.sidebar.slider("Integral Gain (Ki)", 0.0, 2.0, 0.45, 0.05)
+    Kd_val = st.sidebar.slider("Derivative Gain (Kd)", 0.0, 2.0, 0.18, 0.01)
+else:
+    st.sidebar.info("Mode: Operator (Fixed PID Parameters)")
+    Kp_val, Ki_val, Kd_val = 2.8, 0.45, 0.18
+    st.sidebar.caption(f"Locked Gains -> Kp: {Kp_val} | Ki: {Ki_val} | Kd: {Kd_val}")
+
+st.sidebar.markdown("---")
+target_setpoint = st.sidebar.slider("Target Setpoint (m)", 1.0, 20.0, 10.0, 0.5)
+sim_time = st.sidebar.slider("Simulation Duration (s)", 10, 100, 40, 5)
 
 # ---------------------------------------------------------
-# 1. SECURE SECRETS & ENVIRONMENT HANDLING
-# ---------------------------------------------------------
-def get_secret(key_name, default_val=None):
-    """Safely fetch secrets from Streamlit secrets or local environment."""
-    if hasattr(st, "secrets") and key_name in st.secrets:
-        return st.secrets[key_name]
-    return os.getenv(key_name, default_val)
-
-# Example usage of secret key without exposure
-API_KEY = get_secret("API_KEY", "DEMO_SECURE_KEY_LOCAL")
-
-# ---------------------------------------------------------
-# 2. INPUT SANITIZATION & VALIDATION
-# ---------------------------------------------------------
-def sanitize_float(value, min_val, max_val, fallback):
-    """Validates and bounds float input to prevent engine exploits."""
-    try:
-        val = float(value)
-        return max(min_val, min(max_val, val))
-    except (ValueError, TypeError):
-        return fallback
-
-st.title("Secure Industrial PID Controller Dashboard")
-st.caption("Secured & Hardened Edition — Built by **Ali Nasreddine Benseffa**")
-
-# Sidebar Controls with Input Boundary Controls
-st.sidebar.header("Validated Controller Tuning")
-
-raw_kp = st.sidebar.slider("Proportional Gain (Kp)", 0.0, 10.0, 2.8, 0.1)
-raw_ki = st.sidebar.slider("Integral Gain (Ki)", 0.0, 2.0, 0.45, 0.05)
-raw_kd = st.sidebar.slider("Derivative Gain (Kd)", 0.0, 2.0, 0.18, 0.01)
-
-# Sanitize variables
-Kp = sanitize_float(raw_kp, 0.0, 10.0, 2.8)
-Ki = sanitize_float(raw_ki, 0.0, 2.0, 0.45)
-Kd = sanitize_float(raw_kd, 0.0, 2.0, 0.18)
-
-st.sidebar.header("System Target & Environment")
-target_setpoint = st.sidebar.slider("Target Water Level (m)", 1.0, 20.0, 10.0, 0.5)
-sim_time = st.sidebar.slider("Simulation Duration (s)", 5, 60, 30, 5)
-
-# ---------------------------------------------------------
-# 3. CORE PID & TANK LOGIC
+# 2. PID & TANK ENGINE
 # ---------------------------------------------------------
 class PIDController:
-    def __init__(self, Kp, Ki, Kd, dt=0.05, lim_min=0.0, lim_max=100.0):
+    def __init__(self, Kp, Ki, Kd, dt=0.05):
         self.Kp, self.Ki, self.Kd = Kp, Ki, Kd
         self.dt = dt
-        self.lim_min, self.lim_max = lim_min, lim_max
-        self.reset()
-
-    def reset(self):
         self.prev_error = 0.0
         self.integral = 0.0
 
     def update(self, setpoint, measurement):
         error = setpoint - measurement
-        proportional = self.Kp * error
+        p = self.Kp * error
         self.integral += 0.5 * self.Ki * self.dt * (error + self.prev_error)
-        self.integral = max(self.lim_min, min(self.lim_max, self.integral))
-        derivative = self.Kd * (error - self.prev_error) / self.dt
-        output = proportional + self.integral + derivative
-        output = max(self.lim_min, min(self.lim_max, output))
+        self.integral = max(0.0, min(100.0, self.integral))
+        d = self.Kd * (error - self.prev_error) / self.dt
         self.prev_error = error
-        return output
+        return max(0.0, min(100.0, p + self.integral + d))
 
 class TankSystem:
-    def __init__(self, initial_level=0.0):
-        self.level = initial_level
+    def __init__(self):
+        self.level = 0.0
 
-    def update(self, pump_input, dt=0.05):
-        pump_efficiency = 0.12
-        leak_rate = 0.03
-        inflow = pump_input * pump_efficiency
-        outflow = self.level * leak_rate
-        self.level += (inflow - outflow) * dt
-        if self.level < 0.0: self.level = 0.0
+    def update(self, pump_in, dt=0.05):
+        inflow = pump_in * 0.12
+        outflow = self.level * 0.03
+        self.level = max(0.0, (self.level + (inflow - outflow) * dt))
 
-# Execute Simulation Loop safely
+# Run Simulation
 dt = 0.05
 steps = int(sim_time / dt)
-pid = PIDController(Kp, Ki, Kd, dt)
+pid = PIDController(Kp_val, Ki_val, Kd_val, dt)
 tank = TankSystem()
 
-time_list, level_list, setpoint_list, output_list = [], [], [], []
-
+time_b, level_b, sp_b, out_b = [], [], [], []
 for step in range(steps):
     t = step * dt
     u = pid.update(target_setpoint, tank.level)
     tank.update(u, dt)
-    time_list.append(t)
-    level_list.append(tank.level)
-    setpoint_list.append(target_setpoint)
-    output_list.append(u)
+    time_b.append(t)
+    level_b.append(tank.level)
+    sp_b.append(target_setpoint)
+    out_b.append(u)
 
-# Metrics Dashboard
-col1, col2, col3 = st.columns(3)
-col1.metric("Final Water Level", f"{tank.level:.2f} m")
-col2.metric("Target Setpoint", f"{target_setpoint:.2f} m")
-col3.metric("Steady-State Error", f"{abs(target_setpoint - tank.level):.3f} m")
+# Dataframe for telemetry
+df_telemetry = pd.DataFrame({
+    "Time_s": time_b,
+    "Setpoint_m": sp_b,
+    "Water_Level_m": level_b,
+    "Control_Output_Pct": out_b
+})
 
-# Plot Results
-fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 6))
+st.title("Industrial PID Controller & Asset Digital Twin")
+st.caption("Production Ready Engine | Developed by **Ali Nasreddine Benseffa**")
 
-ax1.plot(time_list, setpoint_list, 'r--', label='Setpoint (m)')
-ax1.plot(time_list, level_list, 'b-', linewidth=2, label='Actual Level (m)')
-ax1.set_ylabel('Level (m)')
+# Visual Metrics
+col1, col2, col3, col4 = st.columns(4)
+col1.metric("Current Level", f"{tank.level:.2f} m")
+col2.metric("Target Level", f"{target_setpoint:.2f} m")
+col3.metric("Error", f"{abs(target_setpoint - tank.level):.3f} m")
+col4.metric("Role Logged", user_role.split()[0])
+
+# Real-time Plots
+fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 5))
+ax1.plot(time_b, sp_b, 'r--', label='Target Setpoint (m)')
+ax1.plot(time_b, level_b, 'b-', label='Process Variable (m)')
 ax1.grid(True)
 ax1.legend()
 
-ax2.plot(time_list, output_list, 'g-', label='Control Signal (%)')
-ax2.set_xlabel('Time (s)')
-ax2.set_ylabel('Output (%)')
+ax2.plot(time_b, out_b, 'g-', label='Control Signal Output (%)')
 ax2.grid(True)
 ax2.legend()
 
 st.pyplot(fig)
 
-# Security Status Notice
-st.info("Security Architecture: Inputs sanitized | Zero Hardcoded Keys | Secrets Masked")
+# Data Export Feature
+st.markdown("### Operational Telemetry Data")
+st.download_button(
+    label="Export Simulation CSV Report",
+    data=df_telemetry.to_csv(index=False),
+    file_name="pid_simulation_telemetry.csv",
+    mime="text/csv"
+)
