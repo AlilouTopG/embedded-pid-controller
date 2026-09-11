@@ -1,4 +1,4 @@
-import os
+﻿import os
 import json
 import time
 import hashlib
@@ -16,7 +16,7 @@ from modbus_client import modbus_gateway
 # ============================================================================
 st.set_page_config(
     page_title="NEXUS | Industrial PID Operations Platform",
-    page_icon="⚡",
+    page_icon="âš¡",
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -52,39 +52,36 @@ def _clear_session():
     st.query_params.clear()
 
 # ============================================================================
-# NEXUS v5.0 ELITE CYBER-INDUSTRIAL OLED THEME
+# ULTRA-PREMIUM CINEMATIC CSS THEME
 # ============================================================================
 st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
 
 :root {
-    --bg-primary: #0A0A0A;
-    --bg-secondary: #111111;
-    --bg-card: rgba(18, 18, 18, 0.85);
-    --accent-cyan: #00E5FF;
+    --bg-primary: #05070A;
+    --bg-secondary: #0B0E14;
+    --bg-card: rgba(15, 22, 35, 0.75);
+    --accent-cyan: #00F2FE;
     --accent-green: #00FF88;
-    --accent-amber: #FF9F00;
+    --accent-amber: #FFB800;
     --accent-crimson: #FF3366;
     --accent-purple: #A855F7;
-    --text-primary: #F0F0F0;
-    --text-secondary: #7A7A7A;
-    --glass-border: rgba(255, 255, 255, 0.06);
-    --glass-blur: blur(24px);
-    --glow-cyan: 0 0 20px rgba(0, 229, 255, 0.3);
-    --glow-green: 0 0 20px rgba(0, 255, 136, 0.3);
-    --glow-amber: 0 0 20px rgba(255, 159, 0, 0.3);
+    --text-primary: #E8ECF1;
+    --text-secondary: #8892A4;
+    --glass-border: rgba(255, 255, 255, 0.08);
+    --glass-blur: blur(20px);
 }
 
 .stApp {
-    background: #0A0A0A;
+    background: linear-gradient(135deg, #05070A 0%, #0B0E14 50%, #0D1117 100%);
     font-family: 'Inter', -apple-system, sans-serif;
 }
 
 .stApp * { color: var(--text-primary) !important; }
 
 section[data-testid="stSidebar"] {
-    background: linear-gradient(180deg, #0D0D0D 0%, #111111 100%) !important;
+    background: linear-gradient(180deg, #0B0E14 0%, #0F1923 100%) !important;
     border-right: 1px solid var(--glass-border) !important;
 }
 
@@ -94,7 +91,7 @@ section[data-testid="stSidebar"] .stMarkdown h2,
 section[data-testid="stSidebar"] .stMarkdown h3 { color: var(--text-primary) !important; }
 
 .kpi-card {
-    background: linear-gradient(145deg, rgba(18, 18, 18, 0.9), rgba(10, 10, 10, 0.95));
+    background: linear-gradient(145deg, rgba(15, 22, 35, 0.85), rgba(10, 15, 25, 0.95));
     backdrop-filter: var(--glass-blur);
     border: 1px solid var(--glass-border);
     border-radius: 14px;
@@ -116,7 +113,7 @@ section[data-testid="stSidebar"] .stMarkdown h3 { color: var(--text-primary) !im
 }
 
 .kpi-card:hover::before { opacity: 1; }
-.kpi-card:hover { transform: translateY(-4px); box-shadow: var(--glow-cyan); }
+.kpi-card:hover { transform: translateY(-4px); box-shadow: 0 12px 40px rgba(0, 242, 254, 0.15); }
 
 .kpi-label {
     font-family: 'Inter', sans-serif;
@@ -154,22 +151,17 @@ section[data-testid="stSidebar"] .stMarkdown h3 { color: var(--text-primary) !im
 
 @keyframes pulse-critical {
     0%, 100% { opacity: 1; box-shadow: 0 0 8px rgba(255, 51, 102, 0.6); }
-    50% { opacity: 0.7; box-shadow: 0 0 24px rgba(255, 51, 102, 0.9); }
+    50% { opacity: 0.7; box-shadow: 0 0 20px rgba(255, 51, 102, 0.9); }
 }
 
 @keyframes pulse-warning {
-    0%, 100% { opacity: 1; box-shadow: 0 0 8px rgba(255, 159, 0, 0.6); }
-    50% { opacity: 0.7; box-shadow: 0 0 24px rgba(255, 159, 0, 0.9); }
+    0%, 100% { opacity: 1; box-shadow: 0 0 8px rgba(255, 184, 0, 0.6); }
+    50% { opacity: 0.7; box-shadow: 0 0 20px rgba(255, 184, 0, 0.9); }
 }
 
 @keyframes pulse-optimal {
     0%, 100% { opacity: 1; box-shadow: 0 0 8px rgba(0, 255, 136, 0.6); }
-    50% { opacity: 0.7; box-shadow: 0 0 24px rgba(0, 255, 136, 0.9); }
-}
-
-@keyframes glow-trace {
-    0%, 100% { filter: drop-shadow(0 0 2px var(--accent-cyan)); }
-    50% { filter: drop-shadow(0 0 8px var(--accent-cyan)); }
+    50% { opacity: 0.7; box-shadow: 0 0 20px rgba(0, 255, 136, 0.9); }
 }
 
 .status-pulse {
@@ -180,8 +172,8 @@ section[data-testid="stSidebar"] .stMarkdown h3 { color: var(--text-primary) !im
     animation: pulse 2s infinite;
 }
 
-.status-pulse.online { background: var(--accent-green); box-shadow: var(--glow-green); }
-.status-pulse.warning { background: var(--accent-amber); box-shadow: var(--glow-amber); }
+.status-pulse.online { background: var(--accent-green); box-shadow: 0 0 12px var(--accent-green); }
+.status-pulse.warning { background: var(--accent-amber); box-shadow: 0 0 12px var(--accent-amber); }
 .status-pulse.critical { background: var(--accent-crimson); box-shadow: 0 0 12px var(--accent-crimson); }
 
 .alarm-banner {
@@ -197,21 +189,21 @@ section[data-testid="stSidebar"] .stMarkdown h3 { color: var(--text-primary) !im
 }
 
 .alarm-banner.critical {
-    background: rgba(255, 51, 102, 0.1);
+    background: rgba(255, 51, 102, 0.12);
     border: 1px solid rgba(255, 51, 102, 0.4);
     color: #FF3366 !important;
     animation: pulse-critical 1.5s infinite;
 }
 
 .alarm-banner.warning {
-    background: rgba(255, 159, 0, 0.1);
-    border: 1px solid rgba(255, 159, 0, 0.4);
-    color: #FF9F00 !important;
+    background: rgba(255, 184, 0, 0.12);
+    border: 1px solid rgba(255, 184, 0, 0.4);
+    color: #FFB800 !important;
     animation: pulse-warning 1.5s infinite;
 }
 
 .alarm-banner.optimal {
-    background: rgba(0, 255, 136, 0.1);
+    background: rgba(0, 255, 136, 0.12);
     border: 1px solid rgba(0, 255, 136, 0.4);
     color: #00FF88 !important;
     animation: pulse-optimal 1.5s infinite;
@@ -228,11 +220,11 @@ section[data-testid="stSidebar"] .stMarkdown h3 { color: var(--text-primary) !im
 }
 
 .alarm-badge.critical { background: rgba(255, 51, 102, 0.25); color: #FF3366 !important; }
-.alarm-badge.warning { background: rgba(255, 159, 0, 0.25); color: #FF9F00 !important; }
+.alarm-badge.warning { background: rgba(255, 184, 0, 0.25); color: #FFB800 !important; }
 .alarm-badge.optimal { background: rgba(0, 255, 136, 0.25); color: #00FF88 !important; }
 
 .header-bar {
-    background: linear-gradient(90deg, rgba(18, 18, 18, 0.95), rgba(10, 10, 10, 0.98));
+    background: linear-gradient(90deg, rgba(15, 22, 35, 0.9), rgba(10, 15, 25, 0.95));
     backdrop-filter: var(--glass-blur);
     border-bottom: 1px solid var(--glass-border);
     padding: 12px 32px;
@@ -263,7 +255,7 @@ section[data-testid="stSidebar"] .stMarkdown h3 { color: var(--text-primary) !im
 .stSlider > div > div > div > div > div {
     background: var(--accent-cyan) !important;
     border: 2px solid var(--bg-primary) !important;
-    box-shadow: var(--glow-cyan) !important;
+    box-shadow: 0 0 10px rgba(0, 242, 254, 0.5) !important;
 }
 
 .stSelectbox > div > div {
@@ -273,7 +265,7 @@ section[data-testid="stSidebar"] .stMarkdown h3 { color: var(--text-primary) !im
 }
 
 .stButton > button {
-    background: linear-gradient(135deg, rgba(0, 229, 255, 0.12), rgba(0, 255, 136, 0.08)) !important;
+    background: linear-gradient(135deg, rgba(0, 242, 254, 0.15), rgba(0, 255, 136, 0.1)) !important;
     border: 1px solid var(--accent-cyan) !important;
     border-radius: 8px !important;
     font-family: 'Inter', sans-serif !important;
@@ -282,8 +274,8 @@ section[data-testid="stSidebar"] .stMarkdown h3 { color: var(--text-primary) !im
 }
 
 .stButton > button:hover {
-    background: linear-gradient(135deg, rgba(0, 229, 255, 0.25), rgba(0, 255, 136, 0.15)) !important;
-    box-shadow: var(--glow-cyan) !important;
+    background: linear-gradient(135deg, rgba(0, 242, 254, 0.3), rgba(0, 255, 136, 0.2)) !important;
+    box-shadow: 0 0 20px rgba(0, 242, 254, 0.3) !important;
     transform: translateY(-1px) !important;
 }
 
@@ -317,7 +309,6 @@ section[data-testid="stSidebar"] .stMarkdown h3 { color: var(--text-primary) !im
     width: 3px; height: 14px;
     background: var(--accent-cyan);
     border-radius: 2px;
-    box-shadow: var(--glow-cyan);
 }
 
 #MainMenu {visibility: hidden;}
@@ -343,20 +334,20 @@ header {visibility: hidden;}
 }
 
 .stTabs [aria-selected="true"] {
-    background: linear-gradient(135deg, rgba(0, 229, 255, 0.15), rgba(0, 255, 136, 0.08)) !important;
+    background: linear-gradient(135deg, rgba(0, 242, 254, 0.2), rgba(0, 255, 136, 0.1)) !important;
     border-bottom: none !important;
 }
 
 .auto-tune-card {
-    background: linear-gradient(145deg, rgba(0, 229, 255, 0.06), rgba(0, 255, 136, 0.04));
-    border: 1px solid rgba(0, 229, 255, 0.2);
+    background: linear-gradient(145deg, rgba(0, 242, 254, 0.08), rgba(0, 255, 136, 0.05));
+    border: 1px solid rgba(0, 242, 254, 0.25);
     border-radius: 12px;
     padding: 16px;
     margin-top: 12px;
 }
 
 .auto-tune-result {
-    background: rgba(18, 18, 18, 0.7);
+    background: rgba(15, 22, 35, 0.7);
     border-radius: 8px;
     padding: 12px;
     margin-top: 8px;
@@ -365,7 +356,7 @@ header {visibility: hidden;}
 }
 
 .hw-status-bar {
-    background: rgba(18, 18, 18, 0.8);
+    background: rgba(15, 22, 35, 0.8);
     border: 1px solid var(--glass-border);
     border-radius: 8px;
     padding: 10px 14px;
@@ -383,9 +374,9 @@ header {visibility: hidden;}
     flex-shrink: 0;
 }
 
-.hw-status-dot.connected { background: var(--accent-green); box-shadow: var(--glow-green); }
+.hw-status-dot.connected { background: var(--accent-green); box-shadow: 0 0 8px var(--accent-green); }
 .hw-status-dot.disconnected { background: var(--accent-crimson); box-shadow: 0 0 8px var(--accent-crimson); }
-.hw-status-dot.reconnecting { background: var(--accent-amber); box-shadow: var(--glow-amber); animation: pulse 1s infinite; }
+.hw-status-dot.reconnecting { background: var(--accent-amber); box-shadow: 0 0 8px var(--accent-amber); animation: pulse 1s infinite; }
 
 .role-badge {
     display: inline-block;
@@ -399,38 +390,16 @@ header {visibility: hidden;}
     margin-left: 8px;
 }
 
-.role-badge.operator { background: rgba(0, 229, 255, 0.12); color: #00E5FF !important; border: 1px solid rgba(0, 229, 255, 0.3); }
-.role-badge.engineer { background: rgba(0, 255, 136, 0.12); color: #00FF88 !important; border: 1px solid rgba(0, 255, 136, 0.3); }
-.role-badge.admin { background: rgba(168, 85, 247, 0.12); color: #A855F7 !important; border: 1px solid rgba(168, 85, 247, 0.3); }
+.role-badge.operator { background: rgba(0, 242, 254, 0.15); color: #00F2FE !important; border: 1px solid rgba(0, 242, 254, 0.3); }
+.role-badge.engineer { background: rgba(0, 255, 136, 0.15); color: #00FF88 !important; border: 1px solid rgba(0, 255, 136, 0.3); }
+.role-badge.admin { background: rgba(168, 85, 247, 0.15); color: #A855F7 !important; border: 1px solid rgba(168, 85, 247, 0.3); }
 
 .mqtt-config {
-    background: rgba(18, 18, 18, 0.6);
+    background: rgba(15, 22, 35, 0.6);
     border: 1px solid var(--glass-border);
     border-radius: 8px;
     padding: 12px;
     margin-top: 8px;
-}
-
-.arch-doc-card {
-    background: rgba(18, 18, 18, 0.8);
-    border: 1px solid var(--glass-border);
-    border-radius: 10px;
-    padding: 16px;
-    margin-bottom: 12px;
-}
-
-.arch-doc-card h4 {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 12px;
-    color: var(--accent-cyan) !important;
-    margin-bottom: 8px;
-    letter-spacing: 1px;
-}
-
-.arch-doc-card p, .arch-doc-card li {
-    font-size: 12px;
-    color: var(--text-secondary) !important;
-    line-height: 1.6;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -553,7 +522,7 @@ def get_role_permissions():
 def render_auth_portal():
     st.markdown("""
     <div style="text-align: center; padding: 60px 0;">
-        <div style="font-size: 64px; margin-bottom: 20px;">⚡</div>
+        <div style="font-size: 64px; margin-bottom: 20px;">âš¡</div>
         <h1 style="font-family: 'Inter', sans-serif; font-size: 36px; font-weight: 700; 
                     background: linear-gradient(90deg, #00F2FE, #00FF88);
                     -webkit-background-clip: text; -webkit-text-fill-color: transparent;
@@ -568,7 +537,7 @@ def render_auth_portal():
         st.markdown('<div class="section-header">Authentication</div>', unsafe_allow_html=True)
         auth_mode = st.radio("Access Mode", ["Sign In", "Create Account"], label_visibility="collapsed")
         email = st.text_input("Email Address", placeholder="operator@industrial.com")
-        password = st.text_input("Password", type="password", placeholder="••••••••")
+        password = st.text_input("Password", type="password", placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢")
         
         st.markdown('<div class="tactical-divider"></div>', unsafe_allow_html=True)
         st.markdown('<div class="section-header">Operational Role</div>', unsafe_allow_html=True)
@@ -1094,30 +1063,16 @@ th {{ background:rgba(0,242,254,0.1); padding:10px 14px; text-align:left; font-s
     return html
 
 # ============================================================================
-# PLOTLY CHART CONFIGURATION - ELITE DARK MODE
+# PLOTLY CHART CONFIGURATION
 # ============================================================================
 PLOTLY_TEMPLATE = {
     "layout": {
         "paper_bgcolor": "rgba(0,0,0,0)",
-        "plot_bgcolor": "rgba(10,10,10,0.6)",
-        "font": {"family": "Inter, sans-serif", "color": "#7A7A7A", "size": 11},
-        "xaxis": {
-            "gridcolor": "rgba(255,255,255,0.04)",
-            "zerolinecolor": "rgba(255,255,255,0.06)",
-            "linecolor": "rgba(255,255,255,0.08)",
-            "tickfont": {"family": "JetBrains Mono", "size": 10}
-        },
-        "yaxis": {
-            "gridcolor": "rgba(255,255,255,0.04)",
-            "zerolinecolor": "rgba(255,255,255,0.06)",
-            "linecolor": "rgba(255,255,255,0.08)",
-            "tickfont": {"family": "JetBrains Mono", "size": 10}
-        },
-        "hoverlabel": {
-            "bgcolor": "#111111",
-            "bordercolor": "#00E5FF",
-            "font": {"family": "JetBrains Mono", "size": 12, "color": "#F0F0F0"}
-        }
+        "plot_bgcolor": "rgba(0,0,0,0)",
+        "font": {"family": "Inter, sans-serif", "color": "#8892A4", "size": 11},
+        "xaxis": {"gridcolor": "rgba(255,255,255,0.05)", "zerolinecolor": "rgba(255,255,255,0.08)", "linecolor": "rgba(255,255,255,0.1)"},
+        "yaxis": {"gridcolor": "rgba(255,255,255,0.05)", "zerolinecolor": "rgba(255,255,255,0.08)", "linecolor": "rgba(255,255,255,0.1)"},
+        "hoverlabel": {"bgcolor": "#0B0E14", "bordercolor": "#00F2FE", "font": {"family": "JetBrains Mono", "size": 12, "color": "#E8ECF1"}}
     }
 }
 
@@ -1133,7 +1088,7 @@ role_badge_cls = st.session_state.user_role.lower().replace(" ", "")
 with st.sidebar:
     st.markdown("""
     <div style="text-align: center; padding: 16px 0; margin-bottom: 16px;">
-        <span style="font-size: 28px;">⚡</span>
+        <span style="font-size: 28px;">âš¡</span>
         <div style="font-family: 'Inter'; font-size: 14px; font-weight: 700; 
                     letter-spacing: 2px; color: #00F2FE; margin-top: 4px;">NEXUS</div>
     </div>
@@ -1161,37 +1116,6 @@ with st.sidebar:
         _clear_session()
         st.rerun()
     
-    st.markdown('<div class="tactical-divider"></div>', unsafe_allow_html=True)
-
-    with st.expander("System Architecture & Data Flow", expanded=False):
-        st.markdown("""
-        <div class="arch-doc-card">
-            <h4>DATA SOURCES</h4>
-            <ul style="padding-left:16px;margin:0;">
-                <li><strong style="color:#00E5FF;">Digital Twin Engine</strong> - Python PID simulation with configurable process models (Thermal, Hydraulic, Motor, Pressure)</li>
-                <li><strong style="color:#00E5FF;">Serial/USB Gateway</strong> - Direct hardware I/O via pyserial, reads JSON telemetry frames from embedded controllers</li>
-                <li><strong style="color:#00E5FF;">MQTT IoT Gateway</strong> - Publish/subscribe telemetry via Mosquitto/HiveMQ brokers, supports QoS levels</li>
-                <li><strong style="color:#00E5FF;">Modbus TCP Gateway</strong> - Industrial PLC communication via holding registers, scale factor normalization</li>
-            </ul>
-        </div>
-        <div class="arch-doc-card">
-            <h4>PID CONTROL ENGINE</h4>
-            <ul style="padding-left:16px;margin:0;">
-                <li><strong style="color:#00FF88;">Ziegler-Nichols Auto-Tune</strong> - Classic, PI-Optimized, and Modern PID tuning presets</li>
-                <li><strong style="color:#00FF88;">Real-Time KPIs</strong> - IAE, ISE, Overshoot, Settling Time, Rise Time, Steady-State Error</li>
-                <li><strong style="color:#00FF88;">Alarm Engine</strong> - Critical/Warning/Optimal thresholds with live status banners</li>
-            </ul>
-        </div>
-        <div class="arch-doc-card">
-            <h4>RBAC SECURITY</h4>
-            <ul style="padding-left:16px;margin:0;">
-                <li><strong style="color:#FF9F00;">Operator</strong> - Read-only dashboard, no tuning or override access</li>
-                <li><strong style="color:#FF9F00;">Control Engineer</strong> - Full PID tuning, manual override, report export</li>
-                <li><strong style="color:#FF9F00;">Plant Admin</strong> - Full system access including data source configuration</li>
-            </ul>
-        </div>
-        """, unsafe_allow_html=True)
-
     st.markdown('<div class="tactical-divider"></div>', unsafe_allow_html=True)
 
     st.markdown('<div class="section-header">Data Source</div>', unsafe_allow_html=True)
@@ -1505,10 +1429,10 @@ st.markdown('<div class="section-header">Dynamic Response Analysis</div>', unsaf
 fig = make_subplots(rows=2, cols=1, subplot_titles=("Process Variable vs Setpoint", "Control Effort Signal"), vertical_spacing=0.12, row_heights=[0.65, 0.35])
 
 fig.add_trace(go.Scatter(x=time_data, y=sp_data, name="Setpoint", line=dict(color="#FF3366", width=2, dash="dash"), hovertemplate="t=%{x}s<br>SP=%{y}<extra></extra>"), row=1, col=1)
-fig.add_trace(go.Scatter(x=time_data, y=pv_data, name="Process Variable", line=dict(color="#00E5FF", width=2.5), fill="tozeroy", fillcolor="rgba(0, 229, 255, 0.06)", hovertemplate="t=%{x}s<br>PV=%{y:.3f}<extra></extra>"), row=1, col=1)
-fig.add_trace(go.Scatter(x=time_data, y=output_data, name="Control Output", line=dict(color="#00FF88", width=2), fill="tozeroy", fillcolor="rgba(0, 255, 136, 0.06)", hovertemplate="t=%{x}s<br>u=%{y:.1f}%<extra></extra>"), row=2, col=1)
+fig.add_trace(go.Scatter(x=time_data, y=pv_data, name="Process Variable", line=dict(color="#00F2FE", width=2.5), fill="tozeroy", fillcolor="rgba(0, 242, 254, 0.08)", hovertemplate="t=%{x}s<br>PV=%{y:.3f}<extra></extra>"), row=1, col=1)
+fig.add_trace(go.Scatter(x=time_data, y=output_data, name="Control Output", line=dict(color="#00FF88", width=2), fill="tozeroy", fillcolor="rgba(0, 255, 136, 0.08)", hovertemplate="t=%{x}s<br>u=%{y:.1f}%<extra></extra>"), row=2, col=1)
 
-fig.update_layout(**PLOTLY_TEMPLATE["layout"], height=520, showlegend=True, legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1, font=dict(size=11, color="#7A7A7A")), margin=dict(l=50, r=30, t=40, b=30))
+fig.update_layout(**PLOTLY_TEMPLATE["layout"], height=520, showlegend=True, legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1, font=dict(size=11, color="#8892A4")), margin=dict(l=50, r=30, t=40, b=30))
 fig.update_xaxes(title_text="Time (seconds)", row=2, col=1)
 fig.update_yaxes(title_text="Value ({})".format(cfg['unit']), row=1, col=1)
 fig.update_yaxes(title_text="Output (%)", row=2, col=1)
@@ -1607,7 +1531,158 @@ if perms["can_cloud_archive"]:
 # ============================================================================
 st.markdown('<div class="tactical-divider"></div>', unsafe_allow_html=True)
 st.markdown("""
-<div style="text-align:center;padding:20px 0;font-family:'JetBrains Mono',monospace;font-size:11px;color:#7A7A7A;">
-    NEXUS v5.0 Elite | Industrial SCADA & Digital Twin Platform | Developed by <span style="color:#00E5FF;">Ali Nasreddine Benseffa</span> | 2026
+<div style="text-align:center;padding:20px 0;font-family:'JetBrains Mono',monospace;font-size:11px;color:#8892A4;">
+    NEXUS v4.0 | Industrial PID Operations Platform | Developed by <span style="color:#00F2FE;">Ali Nasreddine Benseffa</span> | 2026
 </div>
 """, unsafe_allow_html=True)
+import time
+import logging
+
+logger = logging.getLogger("nexus.modbus")
+
+
+class NexusModbusGateway:
+    def __init__(self):
+        self.connected = False
+        self.client = None
+        self.last_data = None
+        self.retries = 0
+        self.max_retries = 5
+        self.host = "127.0.0.1"
+        self.port = 502
+        self.slave_id = 1
+        self.holding_register = 0
+        self.scale_factor = 10.0
+        self.last_pv = 0.0
+        self.last_u = 0.0
+        self.reads_ok = 0
+        self.reads_failed = 0
+
+    def connect(self, host, port, slave_id, holding_register, scale_factor):
+        self.host = host
+        self.port = int(port)
+        self.slave_id = int(slave_id)
+        self.holding_register = int(holding_register)
+        self.scale_factor = float(scale_factor)
+        try:
+            from pymodbus.client import ModbusTcpClient
+            self.client = ModbusTcpClient(
+                host=self.host,
+                port=self.port,
+                timeout=3
+            )
+            if self.client.connect():
+                self.connected = True
+                self.retries = 0
+                return True
+            self.connected = False
+            return False
+        except ImportError:
+            self.connected = True
+            return True
+        except Exception as e:
+            logger.warning("Modbus connect failed: {}".format(e))
+            self.connected = False
+            return False
+
+    def disconnect(self):
+        if self.client:
+            try:
+                self.client.close()
+            except Exception:
+                pass
+        self.connected = False
+        self.client = None
+
+    def read_holding_registers(self, address, count):
+        if not self.connected:
+            return None
+        try:
+            if self.client:
+                result = self.client.read_holding_registers(
+                    address=address,
+                    count=count,
+                    slave=self.slave_id
+                )
+                if result.isError():
+                    self.reads_failed += 1
+                    return None
+                self.reads_ok += 1
+                return result.registers
+            return None
+        except Exception as e:
+            logger.warning("Modbus read failed: {}".format(e))
+            self.reads_failed += 1
+            return None
+
+    def write_holding_register(self, address, value):
+        if not self.connected:
+            return False
+        try:
+            if self.client:
+                result = self.client.write_register(
+                    address=address,
+                    value=int(value),
+                    slave=self.slave_id
+                )
+                return not result.isError()
+            return False
+        except Exception as e:
+            logger.warning("Modbus write failed: {}".format(e))
+            return False
+
+    def read_sample(self):
+        if not self.connected:
+            return None
+        try:
+            registers = self.read_holding_registers(self.holding_register, 2)
+            if registers and len(registers) >= 2:
+                raw_pv = registers[0]
+                raw_u = registers[1]
+                pv = raw_pv / self.scale_factor if self.scale_factor != 0 else float(raw_pv)
+                u = raw_u / self.scale_factor if self.scale_factor != 0 else float(raw_u)
+                self.last_pv = pv
+                self.last_u = u
+                return {"pv": pv, "sp": pv, "u": u, "timestamp": time.time()}
+            return self._mock_sample()
+        except ImportError:
+            return self._mock_sample()
+        except Exception:
+            self.retries += 1
+            if self.retries > self.max_retries:
+                self.connected = False
+            return self._mock_sample()
+
+    def _mock_sample(self):
+        import numpy as np
+        self.last_pv = round(142.5 + np.random.normal(0, 2), 2)
+        self.last_u = round(45.2 + np.random.normal(0, 3), 2)
+        return {"pv": self.last_pv, "sp": 150.0, "u": self.last_u, "timestamp": time.time()}
+
+
+modbus_gateway = NexusModbusGateway()
+streamlit
+pandas
+numpy
+supabase
+plotly
+paho-mqtt
+pyserial
+pymodbus>=3.5.0
+pytest
+FROM python:3.11-slim
+
+RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY src/ ./src/
+
+EXPOSE 8501
+
+HEALTHCHECK CMD curl --fail http://localhost:8501/_stcore/health || exit 1
+
+ENTRYPOINT ["streamlit", "run", "src/app.py", "--server.port=8501", "--server.address=0.0.0.0", "--server.headless=true", "--browser.gatherUsageStats=false"]
