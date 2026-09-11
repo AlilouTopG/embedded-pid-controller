@@ -1,5 +1,7 @@
 import os
+import json
 import time
+import datetime
 import numpy as np
 import pandas as pd
 import streamlit as st
@@ -47,7 +49,6 @@ st.markdown("""
     color: var(--text-primary) !important;
 }
 
-/* Sidebar Styling */
 section[data-testid="stSidebar"] {
     background: linear-gradient(180deg, #0B0E14 0%, #0F1923 100%) !important;
     border-right: 1px solid var(--glass-border) !important;
@@ -60,7 +61,6 @@ section[data-testid="stSidebar"] .stMarkdown h3 {
     color: var(--text-primary) !important;
 }
 
-/* Glass Card Component */
 .glass-card {
     background: var(--bg-card);
     backdrop-filter: var(--glass-blur);
@@ -69,21 +69,16 @@ section[data-testid="stSidebar"] .stMarkdown h3 {
     border-radius: 16px;
     padding: 24px;
     margin-bottom: 16px;
-    box-shadow: 
-        0 8px 32px rgba(0, 0, 0, 0.4),
-        inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.05);
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .glass-card:hover {
     border-color: rgba(0, 242, 254, 0.3);
-    box-shadow: 
-        0 8px 32px rgba(0, 242, 254, 0.1),
-        inset 0 1px 0 rgba(255, 255, 255, 0.08);
+    box-shadow: 0 8px 32px rgba(0, 242, 254, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.08);
     transform: translateY(-2px);
 }
 
-/* KPI Metric Cards */
 .kpi-card {
     background: linear-gradient(145deg, rgba(15, 22, 35, 0.85), rgba(10, 15, 25, 0.95));
     backdrop-filter: var(--glass-blur);
@@ -99,23 +94,15 @@ section[data-testid="stSidebar"] .stMarkdown h3 {
 .kpi-card::before {
     content: '';
     position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
+    top: 0; left: 0; right: 0;
     height: 2px;
     background: linear-gradient(90deg, transparent, var(--accent-cyan), transparent);
     opacity: 0;
     transition: opacity 0.3s ease;
 }
 
-.kpi-card:hover::before {
-    opacity: 1;
-}
-
-.kpi-card:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 12px 40px rgba(0, 242, 254, 0.15);
-}
+.kpi-card:hover::before { opacity: 1; }
+.kpi-card:hover { transform: translateY(-4px); box-shadow: 0 12px 40px rgba(0, 242, 254, 0.15); }
 
 .kpi-label {
     font-family: 'Inter', sans-serif;
@@ -146,16 +133,29 @@ section[data-testid="stSidebar"] .stMarkdown h3 {
     margin-top: 4px;
 }
 
-/* Status Pulse Indicator */
 @keyframes pulse {
     0%, 100% { opacity: 1; transform: scale(1); }
     50% { opacity: 0.5; transform: scale(1.2); }
 }
 
+@keyframes pulse-critical {
+    0%, 100% { opacity: 1; box-shadow: 0 0 8px rgba(255, 51, 102, 0.6); }
+    50% { opacity: 0.7; box-shadow: 0 0 20px rgba(255, 51, 102, 0.9); }
+}
+
+@keyframes pulse-warning {
+    0%, 100% { opacity: 1; box-shadow: 0 0 8px rgba(255, 184, 0, 0.6); }
+    50% { opacity: 0.7; box-shadow: 0 0 20px rgba(255, 184, 0, 0.9); }
+}
+
+@keyframes pulse-optimal {
+    0%, 100% { opacity: 1; box-shadow: 0 0 8px rgba(0, 255, 136, 0.6); }
+    50% { opacity: 0.7; box-shadow: 0 0 20px rgba(0, 255, 136, 0.9); }
+}
+
 .status-pulse {
     display: inline-block;
-    width: 10px;
-    height: 10px;
+    width: 10px; height: 10px;
     border-radius: 50%;
     margin-right: 8px;
     animation: pulse 2s infinite;
@@ -165,7 +165,53 @@ section[data-testid="stSidebar"] .stMarkdown h3 {
 .status-pulse.warning { background: var(--accent-amber); box-shadow: 0 0 12px var(--accent-amber); }
 .status-pulse.critical { background: var(--accent-crimson); box-shadow: 0 0 12px var(--accent-crimson); }
 
-/* Header Bar */
+.alarm-banner {
+    padding: 14px 20px;
+    border-radius: 10px;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    font-weight: 500;
+    animation: pulse-critical 1.5s infinite;
+}
+
+.alarm-banner.critical {
+    background: rgba(255, 51, 102, 0.12);
+    border: 1px solid rgba(255, 51, 102, 0.4);
+    color: #FF3366 !important;
+}
+
+.alarm-banner.warning {
+    background: rgba(255, 184, 0, 0.12);
+    border: 1px solid rgba(255, 184, 0, 0.4);
+    color: #FFB800 !important;
+    animation: pulse-warning 1.5s infinite;
+}
+
+.alarm-banner.optimal {
+    background: rgba(0, 255, 136, 0.12);
+    border: 1px solid rgba(0, 255, 136, 0.4);
+    color: #00FF88 !important;
+    animation: pulse-optimal 1.5s infinite;
+}
+
+.alarm-badge {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+}
+
+.alarm-badge.critical { background: rgba(255, 51, 102, 0.25); color: #FF3366 !important; }
+.alarm-badge.warning { background: rgba(255, 184, 0, 0.25); color: #FFB800 !important; }
+.alarm-badge.optimal { background: rgba(0, 255, 136, 0.25); color: #00FF88 !important; }
+
 .header-bar {
     background: linear-gradient(90deg, rgba(15, 22, 35, 0.9), rgba(10, 15, 25, 0.95));
     backdrop-filter: var(--glass-blur);
@@ -194,25 +240,19 @@ section[data-testid="stSidebar"] .stMarkdown h3 {
     color: var(--text-secondary) !important;
 }
 
-/* Custom Slider Styling */
-.stSlider > div > div > div > div {
-    background: var(--accent-cyan) !important;
-}
-
+.stSlider > div > div > div > div { background: var(--accent-cyan) !important; }
 .stSlider > div > div > div > div > div {
     background: var(--accent-cyan) !important;
     border: 2px solid var(--bg-primary) !important;
     box-shadow: 0 0 10px rgba(0, 242, 254, 0.5) !important;
 }
 
-/* Custom Selectbox */
 .stSelectbox > div > div {
     background: var(--bg-card) !important;
     border: 1px solid var(--glass-border) !important;
     border-radius: 8px !important;
 }
 
-/* Custom Buttons */
 .stButton > button {
     background: linear-gradient(135deg, rgba(0, 242, 254, 0.15), rgba(0, 255, 136, 0.1)) !important;
     border: 1px solid var(--accent-cyan) !important;
@@ -229,22 +269,18 @@ section[data-testid="stSidebar"] .stMarkdown h3 {
     transform: translateY(-1px) !important;
 }
 
-/* Expander Styling */
 .streamlit-expanderHeader {
     background: var(--bg-card) !important;
     border: 1px solid var(--glass-border) !important;
     border-radius: 8px !important;
-    font-family: 'Inter', sans-serif !important;
 }
 
-/* Divider */
 .tactical-divider {
     height: 1px;
     background: linear-gradient(90deg, transparent, var(--glass-border), transparent);
     margin: 16px 0;
 }
 
-/* Section Header */
 .section-header {
     font-family: 'Inter', sans-serif;
     font-size: 11px;
@@ -260,25 +296,20 @@ section[data-testid="stSidebar"] .stMarkdown h3 {
 
 .section-header::before {
     content: '';
-    width: 3px;
-    height: 14px;
+    width: 3px; height: 14px;
     background: var(--accent-cyan);
     border-radius: 2px;
 }
 
-/* Hide Streamlit Defaults */
 #MainMenu {visibility: hidden;}
 footer {visibility: hidden;}
 header {visibility: hidden;}
 .stDeployButton {display: none;}
 
-/* Scrollbar */
 ::-webkit-scrollbar { width: 6px; }
 ::-webkit-scrollbar-track { background: var(--bg-primary); }
 ::-webkit-scrollbar-thumb { background: var(--glass-border); border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.15); }
 
-/* Tabs */
 .stTabs [data-baseweb="tab-list"] {
     background: var(--bg-card) !important;
     border-radius: 10px !important;
@@ -296,6 +327,46 @@ header {visibility: hidden;}
     background: linear-gradient(135deg, rgba(0, 242, 254, 0.2), rgba(0, 255, 136, 0.1)) !important;
     border-bottom: none !important;
 }
+
+.auto-tune-card {
+    background: linear-gradient(145deg, rgba(0, 242, 254, 0.08), rgba(0, 255, 136, 0.05));
+    border: 1px solid rgba(0, 242, 254, 0.25);
+    border-radius: 12px;
+    padding: 16px;
+    margin-top: 12px;
+}
+
+.auto-tune-result {
+    background: rgba(15, 22, 35, 0.7);
+    border-radius: 8px;
+    padding: 12px;
+    margin-top: 8px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+}
+
+.hw-status-bar {
+    background: rgba(15, 22, 35, 0.8);
+    border: 1px solid var(--glass-border);
+    border-radius: 8px;
+    padding: 10px 14px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 12px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+}
+
+.hw-status-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.hw-status-dot.connected { background: var(--accent-green); box-shadow: 0 0 8px var(--accent-green); }
+.hw-status-dot.disconnected { background: var(--accent-crimson); box-shadow: 0 0 8px var(--accent-crimson); }
+.hw-status-dot.reconnecting { background: var(--accent-amber); box-shadow: 0 0 8px var(--accent-amber); animation: pulse 1s infinite; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -321,8 +392,14 @@ supabase = init_supabase()
 # ============================================================================
 if 'user' not in st.session_state:
     st.session_state.user = None
-if 'sim_history' not in st.session_state:
-    st.session_state.sim_history = []
+if 'alarm_log' not in st.session_state:
+    st.session_state.alarm_log = []
+if 'hw_connected' not in st.session_state:
+    st.session_state.hw_connected = False
+if 'hw_retries' not in st.session_state:
+    st.session_state.hw_retries = 0
+if 'last_hw_data' not in st.session_state:
+    st.session_state.last_hw_data = None
 
 # ============================================================================
 # AUTHENTICATION MODULE
@@ -343,7 +420,6 @@ def render_auth_portal():
     
     with st.sidebar:
         st.markdown('<div class="section-header">Authentication</div>', unsafe_allow_html=True)
-        
         auth_mode = st.radio("Access Mode", ["Sign In", "Create Account"], label_visibility="collapsed")
         email = st.text_input("Email Address", placeholder="operator@industrial.com")
         password = st.text_input("Password", type="password", placeholder="••••••••")
@@ -369,7 +445,6 @@ def render_auth_portal():
                         st.error("Authentication failed. Verify credentials.")
                 else:
                     st.error("Supabase credentials not configured.")
-    
     st.stop()
 
 if st.session_state.user is None:
@@ -382,22 +457,26 @@ PROCESSES = {
     "🔥 Thermal Reactor": {
         "unit": "°C", "default_sp": 150.0, "max_sp": 300.0, "min_sp": 20.0,
         "a_factor": 0.08, "loss_factor": 0.02, "noise": 0.5,
-        "description": "High-temperature industrial furnace control"
+        "description": "High-temperature industrial furnace control",
+        "zn_params": {"Ku": 5.2, "Tu": 8.5}
     },
     "💧 Hydraulic Surge Tank": {
         "unit": "m", "default_sp": 8.0, "max_sp": 20.0, "min_sp": 0.5,
         "a_factor": 0.12, "loss_factor": 0.03, "noise": 0.1,
-        "description": "Liquid level regulation with variable flow"
+        "description": "Liquid level regulation with variable flow",
+        "zn_params": {"Ku": 4.8, "Tu": 6.2}
     },
     "⚡ DC Servo Motor": {
         "unit": "RPM", "default_sp": 1500.0, "max_sp": 3000.0, "min_sp": 100.0,
         "a_factor": 15.0, "loss_factor": 0.5, "noise": 5.0,
-        "description": "High-precision speed control system"
+        "description": "High-precision speed control system",
+        "zn_params": {"Ku": 3.5, "Tu": 4.0}
     },
     "🔴 Pressure Vessel": {
         "unit": "bar", "default_sp": 6.0, "max_sp": 15.0, "min_sp": 0.5,
         "a_factor": 0.05, "loss_factor": 0.01, "noise": 0.05,
-        "description": "Gas pressure regulation and safety control"
+        "description": "Gas pressure regulation and safety control",
+        "zn_params": {"Ku": 6.0, "Tu": 10.0}
     }
 }
 
@@ -407,6 +486,100 @@ TUNING_PRESETS = {
     "Deadbeat": {"Kp": 3.2, "Ki": 0.8, "Kd": 1.2},
     "Noise-Tolerant": {"Kp": 2.0, "Ki": 0.2, "Kd": 0.02}
 }
+
+# ============================================================================
+# ZIEGLER-NICHOLS AUTO-TUNING ENGINE
+# ============================================================================
+def ziegler_nichols_tune(process_name):
+    params = PROCESSES[process_name]["zn_params"]
+    Ku = params["Ku"]
+    Tu = params["Tu"]
+
+    kp_classic = 0.6 * Ku
+    ti_classic = Tu / 2.0
+    td_classic = Tu / 8.0
+
+    kp_pi = 0.45 * Ku
+    ki_pi = 0.54 * Ku / Tu
+
+    kp_pid = 0.6 * Ku
+    ki_pid = 1.2 * Ku / Tu
+    kd_pid = 0.075 * Ku * Tu
+
+    return {
+        "Ku": round(Ku, 3),
+        "Tu": round(Tu, 3),
+        "Classic_PID": {
+            "Kp": round(kp_classic, 3),
+            "Ki": round(kp_classic / ti_classic, 3) if ti_classic > 0 else 0.0,
+            "Kd": round(kp_classic * td_classic, 3)
+        },
+        "PI_Optimized": {
+            "Kp": round(kp_pi, 3),
+            "Ki": round(ki_pi, 3),
+            "Kd": 0.0
+        },
+        "Modern_PID": {
+            "Kp": round(kp_pid, 3),
+            "Ki": round(ki_pid, 3),
+            "Kd": round(kd_pid, 3)
+        }
+    }
+
+# ============================================================================
+# HARDWARE GATEWAY STUB
+# ============================================================================
+class HardwareGateway:
+    def __init__(self):
+        self.connected = False
+        self.retries = 0
+        self.max_retries = 5
+        self.last_data = None
+
+    def parse_telemetry(self, raw_string):
+        try:
+            data = json.loads(raw_string)
+            return {
+                "pv": float(data.get("pv", 0.0)),
+                "sp": float(data.get("sp", 0.0)),
+                "u": float(data.get("u", 0.0)),
+                "timestamp": data.get("ts", time.time())
+            }
+        except (json.JSONDecodeError, ValueError, TypeError):
+            return None
+
+    def try_connect(self):
+        self.retries += 1
+        if self.retries <= self.max_retries:
+            self.connected = True
+            return True
+        self.connected = False
+        return False
+
+    def read_sample(self):
+        if not self.connected:
+            return None
+        try:
+            import serial
+            ser = serial.Serial('COM3', 115200, timeout=1)
+            raw = ser.readline().decode('utf-8').strip()
+            ser.close()
+            return self.parse_telemetry(raw)
+        except ImportError:
+            mock_data = json.dumps({
+                "pv": round(142.5 + np.random.normal(0, 2), 2),
+                "sp": 150.0,
+                "u": round(45.2 + np.random.normal(0, 3), 2),
+                "ts": time.time()
+            })
+            return self.parse_telemetry(mock_data)
+        except Exception:
+            self.retries += 1
+            if self.retries > self.max_retries:
+                self.connected = False
+            return None
+
+hw_gateway = HardwareGateway()
 
 # ============================================================================
 # PID CONTROLLER ENGINE
@@ -422,25 +595,20 @@ class PIDEngine:
         self.prev_error = 0.0
         self.integral = 0.0
         self.output = 0.0
-        
+
     def reset(self):
         self.prev_error = 0.0
         self.integral = 0.0
         self.output = 0.0
-        
+
     def update(self, setpoint, measurement):
         error = setpoint - measurement
-        
         proportional = self.Kp * error
-        
         self.integral += 0.5 * self.Ki * self.dt * (error + self.prev_error)
         self.integral = max(self.lim_min, min(self.lim_max, self.integral))
-        
         derivative = self.Kd * (error - self.prev_error) / self.dt if self.dt > 0 else 0.0
-        
         self.output = proportional + self.integral + derivative
         self.output = max(self.lim_min, min(self.lim_max, self.output))
-        
         self.prev_error = error
         return self.output
 
@@ -492,6 +660,214 @@ def calculate_kpis(time_arr, error_arr, setpoint, pv_arr, output_arr):
     }
 
 # ============================================================================
+# ALARM EVALUATION ENGINE
+# ============================================================================
+def evaluate_alarms(pv_arr, output_arr, sp, kpis, cfg):
+    alarms = []
+    ts = datetime.datetime.now().strftime("%H:%M:%S.%f")[:-3]
+
+    if len(pv_arr) > 0:
+        final_pv = float(pv_arr[-1])
+        max_pv = float(np.max(pv_arr))
+
+        if max_pv > sp * 1.25:
+            alarms.append({
+                "time": ts, "type": "CRITICAL", "code": "ALM-001",
+                "message": f"HIGH OVERSHOOT CRITICAL > {round(((max_pv - sp) / sp * 100) if sp > 0 else 0, 1)}%"
+            })
+        elif max_pv > sp * 1.15:
+            alarms.append({
+                "time": ts, "type": "WARNING", "code": "ALM-002",
+                "message": f"OVERSHOOT WARNING > {round(((max_pv - sp) / sp * 100) if sp > 0 else 0, 1)}%"
+            })
+
+        if cfg["unit"] == "°C" and max_pv > 250.0:
+            alarms.append({
+                "time": ts, "type": "CRITICAL", "code": "ALM-003",
+                "message": f"HIGH TEMPERATURE OVERHEAT {max_pv}°C"
+            })
+        elif cfg["unit"] == "°C" and max_pv > 200.0:
+            alarms.append({
+                "time": ts, "type": "WARNING", "code": "ALM-004",
+                "message": f"ELEVATED TEMPERATURE {max_pv}°C"
+            })
+
+        if cfg["unit"] == "bar" and max_pv > 12.0:
+            alarms.append({
+                "time": ts, "type": "CRITICAL", "code": "ALM-005",
+                "message": f"HIGH PRESSURE CRITICAL {max_pv} bar"
+            })
+
+        if kpis["Steady-State Error"] > 2.0:
+            alarms.append({
+                "time": ts, "type": "WARNING", "code": "ALM-006",
+                "message": f"HIGH STEADY-STATE ERROR {kpis['Steady-State Error']}"
+            })
+        elif kpis["Steady-State Error"] < 0.1:
+            alarms.append({
+                "time": ts, "type": "OPTIMAL", "code": "ALM-010",
+                "message": f"SYSTEM NOMINAL SSE={kpis['Steady-State Error']}"
+            })
+
+    if len(output_arr) > 0:
+        max_u = float(np.max(output_arr))
+        if max_u >= 99.5:
+            alarms.append({
+                "time": ts, "type": "WARNING", "code": "ALM-007",
+                "message": f"ACTUATOR SATURATION LIMIT {max_u}%"
+            })
+
+    if kpis["Overshoot"] < 2.0 and kpis["Steady-State Error"] < 0.5:
+        alarms.append({
+            "time": ts, "type": "OPTIMAL", "code": "ALM-011",
+            "message": "EXCELLENT TUNING QUALITY"
+        })
+
+    return alarms
+
+# ============================================================================
+# HTML REPORT GENERATOR
+# ============================================================================
+def generate_html_report(process_name, cfg, control_mode, Kp, Ki, Kd,
+                          target_setpoint, kpis, alarm_log, zn_result=None):
+    now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    user_email = st.session_state.user.email if st.session_state.user else "N/A"
+
+    alarm_rows = ""
+    for a in alarm_log:
+        badge_cls = a["type"].lower()
+        alarm_rows += f"""
+        <tr>
+            <td style="padding:8px 12px;border-bottom:1px solid rgba(255,255,255,0.06);font-family:'JetBrains Mono',monospace;font-size:12px;color:#8892A4;">{a['time']}</td>
+            <td style="padding:8px 12px;border-bottom:1px solid rgba(255,255,255,0.06);"><span class="badge badge-{badge_cls}">{a['type']}</span></td>
+            <td style="padding:8px 12px;border-bottom:1px solid rgba(255,255,255,0.06);font-family:'JetBrains Mono',monospace;font-size:12px;color:#8892A4;">{a['code']}</td>
+            <td style="padding:8px 12px;border-bottom:1px solid rgba(255,255,255,0.06);font-family:'Inter',sans-serif;font-size:13px;color:#E8ECF1;">{a['message']}</td>
+        </tr>"""
+
+    zn_section = ""
+    if zn_result:
+        zn_section = f"""
+        <div style="margin-top:24px;">
+            <h2 style="font-family:'Inter',sans-serif;font-size:16px;font-weight:700;color:#00F2FE;letter-spacing:1px;margin-bottom:16px;">⚡ Ziegler-Nichols Auto-Tune Results</h2>
+            <table style="width:100%;border-collapse:collapse;background:rgba(15,22,35,0.6);border-radius:10px;overflow:hidden;">
+                <thead>
+                    <tr style="background:rgba(0,242,254,0.1);">
+                        <th style="padding:10px 14px;text-align:left;font-family:'Inter',sans-serif;font-size:11px;letter-spacing:1px;color:#8892A4;">PARAMETER</th>
+                        <th style="padding:10px 14px;text-align:left;font-family:'Inter',sans-serif;font-size:11px;letter-spacing:1px;color:#8892A4;">CLASSIC PID</th>
+                        <th style="padding:10px 14px;text-align:left;font-family:'Inter',sans-serif;font-size:11px;letter-spacing:1px;color:#8892A4;">PI OPTIMIZED</th>
+                        <th style="padding:10px 14px;text-align:left;font-family:'Inter',sans-serif;font-size:11px;letter-spacing:1px;color:#8892A4;">MODERN PID</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td style="padding:10px 14px;border-bottom:1px solid rgba(255,255,255,0.06);font-family:'Inter',sans-serif;font-size:13px;color:#E8ECF1;">Kp</td>
+                        <td style="padding:10px 14px;border-bottom:1px solid rgba(255,255,255,0.06);font-family:'JetBrains Mono',monospace;font-size:13px;color:#00F2FE;">{zn_result['Classic_PID']['Kp']}</td>
+                        <td style="padding:10px 14px;border-bottom:1px solid rgba(255,255,255,0.06);font-family:'JetBrains Mono',monospace;font-size:13px;color:#00F2FE;">{zn_result['PI_Optimized']['Kp']}</td>
+                        <td style="padding:10px 14px;border-bottom:1px solid rgba(255,255,255,0.06);font-family:'JetBrains Mono',monospace;font-size:13px;color:#00F2FE;">{zn_result['Modern_PID']['Kp']}</td>
+                    </tr>
+                    <tr>
+                        <td style="padding:10px 14px;border-bottom:1px solid rgba(255,255,255,0.06);font-family:'Inter',sans-serif;font-size:13px;color:#E8ECF1;">Ki</td>
+                        <td style="padding:10px 14px;border-bottom:1px solid rgba(255,255,255,0.06);font-family:'JetBrains Mono',monospace;font-size:13px;color:#00F2FE;">{zn_result['Classic_PID']['Ki']}</td>
+                        <td style="padding:10px 14px;border-bottom:1px solid rgba(255,255,255,0.06);font-family:'JetBrains Mono',monospace;font-size:13px;color:#00F2FE;">{zn_result['PI_Optimized']['Ki']}</td>
+                        <td style="padding:10px 14px;border-bottom:1px solid rgba(255,255,255,0.06);font-family:'JetBrains Mono',monospace;font-size:13px;color:#00F2FE;">{zn_result['Modern_PID']['Ki']}</td>
+                    </tr>
+                    <tr>
+                        <td style="padding:10px 14px;border-bottom:1px solid rgba(255,255,255,0.06);font-family:'Inter',sans-serif;font-size:13px;color:#E8ECF1;">Kd</td>
+                        <td style="padding:10px 14px;border-bottom:1px solid rgba(255,255,255,0.06);font-family:'JetBrains Mono',monospace;font-size:13px;color:#00F2FE;">{zn_result['Classic_PID']['Kd']}</td>
+                        <td style="padding:10px 14px;border-bottom:1px solid rgba(255,255,255,0.06);font-family:'JetBrains Mono',monospace;font-size:13px;color:#00F2FE;">{zn_result['PI_Optimized']['Kd']}</td>
+                        <td style="padding:10px 14px;border-bottom:1px solid rgba(255,255,255,0.06);font-family:'JetBrains Mono',monospace;font-size:13px;color:#00F2FE;">{zn_result['Modern_PID']['Kd']}</td>
+                    </tr>
+                </tbody>
+            </table>
+            <p style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#8892A4;margin-top:8px;">Ku = {zn_result['Ku']} | Tu = {zn_result['Tu']}s (Ultimate Gain & Period)</p>
+        </div>"""
+
+    critical_count = sum(1 for a in alarm_log if a["type"] == "CRITICAL")
+    warning_count = sum(1 for a in alarm_log if a["type"] == "WARNING")
+    optimal_count = sum(1 for a in alarm_log if a["type"] == "OPTIMAL")
+
+    html = f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NEXUS PID Test Certificate — {process_name}</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+body {{ margin:0; padding:40px; background:#05070A; color:#E8ECF1; font-family:'Inter',sans-serif; }}
+.container {{ max-width:900px; margin:0 auto; }}
+.header {{ text-align:center; padding:40px 0; border-bottom:2px solid rgba(0,242,254,0.3); margin-bottom:32px; }}
+.header h1 {{ font-size:28px; font-weight:700; letter-spacing:3px; background:linear-gradient(90deg,#00F2FE,#00FF88); -webkit-background-clip:text; -webkit-text-fill-color:transparent; margin-bottom:8px; }}
+.header p {{ color:#8892A4; font-size:13px; letter-spacing:1px; }}
+.section-title {{ font-family:'Inter',sans-serif; font-size:14px; font-weight:700; color:#00F2FE; letter-spacing:2px; text-transform:uppercase; margin:28px 0 14px 0; padding-bottom:8px; border-bottom:1px solid rgba(0,242,254,0.2); }}
+.badge {{ display:inline-block; padding:3px 10px; border-radius:20px; font-size:10px; font-weight:700; letter-spacing:1px; }}
+.badge-critical {{ background:rgba(255,51,102,0.2); color:#FF3366; }}
+.badge-warning {{ background:rgba(255,184,0,0.2); color:#FFB800; }}
+.badge-optimal {{ background:rgba(0,255,136,0.2); color:#00FF88; }}
+table {{ width:100%; border-collapse:collapse; background:rgba(15,22,35,0.6); border-radius:10px; overflow:hidden; }}
+th {{ background:rgba(0,242,254,0.1); padding:10px 14px; text-align:left; font-family:'Inter',sans-serif; font-size:11px; letter-spacing:1px; color:#8892A4; }}
+.footer {{ text-align:center; margin-top:40px; padding-top:20px; border-top:1px solid rgba(255,255,255,0.08); font-family:'JetBrains Mono',monospace; font-size:11px; color:#8892A4; }}
+</style>
+</head>
+<body>
+<div class="container">
+    <div class="header">
+        <h1>⚡ NEXUS TEST CERTIFICATE</h1>
+        <p>Industrial PID Controller Performance Report</p>
+        <p style="margin-top:8px;font-family:'JetBrains Mono',monospace;font-size:12px;color:#00F2FE;">Generated: {now}</p>
+    </div>
+
+    <h2 class="section-title">Test Metadata</h2>
+    <table>
+        <tr><td style="padding:10px 14px;border-bottom:1px solid rgba(255,255,255,0.06);font-size:13px;color:#8892A4;">Operator</td><td style="padding:10px 14px;border-bottom:1px solid rgba(255,255,255,0.06);font-size:13px;">{user_email}</td></tr>
+        <tr><td style="padding:10px 14px;border-bottom:1px solid rgba(255,255,255,0.06);font-size:13px;color:#8892A4;">Process</td><td style="padding:10px 14px;border-bottom:1px solid rgba(255,255,255,0.06);font-size:13px;">{process_name}</td></tr>
+        <tr><td style="padding:10px 14px;border-bottom:1px solid rgba(255,255,255,0.06);font-size:13px;color:#8892A4;">Control Mode</td><td style="padding:10px 14px;border-bottom:1px solid rgba(255,255,255,0.06);font-size:13px;">{control_mode}</td></tr>
+        <tr><td style="padding:10px 14px;border-bottom:1px solid rgba(255,255,255,0.06);font-size:13px;color:#8892A4;">Setpoint</td><td style="padding:10px 14px;border-bottom:1px solid rgba(255,255,255,0.06);font-family:'JetBrains Mono',monospace;font-size:13px;color:#00F2FE;">{target_setpoint} {cfg['unit']}</td></tr>
+    </table>
+
+    <h2 class="section-title">Active PID Parameters</h2>
+    <table>
+        <tr>
+            <th style="text-align:left;">Parameter</th><th style="text-align:left;">Value</th><th style="text-align:left;">Description</th>
+        </tr>
+        <tr><td style="padding:10px 14px;border-bottom:1px solid rgba(255,255,255,0.06);font-size:13px;">Kp</td><td style="padding:10px 14px;border-bottom:1px solid rgba(255,255,255,0.06);font-family:'JetBrains Mono',monospace;font-size:13px;color:#00F2FE;">{Kp}</td><td style="padding:10px 14px;border-bottom:1px solid rgba(255,255,255,0.06);font-size:13px;color:#8892A4;">Proportional Gain</td></tr>
+        <tr><td style="padding:10px 14px;border-bottom:1px solid rgba(255,255,255,0.06);font-size:13px;">Ki</td><td style="padding:10px 14px;border-bottom:1px solid rgba(255,255,255,0.06);font-family:'JetBrains Mono',monospace;font-size:13px;color:#00F2FE;">{Ki}</td><td style="padding:10px 14px;border-bottom:1px solid rgba(255,255,255,0.06);font-size:13px;color:#8892A4;">Integral Gain</td></tr>
+        <tr><td style="padding:10px 14px;border-bottom:1px solid rgba(255,255,255,0.06);font-size:13px;">Kd</td><td style="padding:10px 14px;border-bottom:1px solid rgba(255,255,255,0.06);font-family:'JetBrains Mono',monospace;font-size:13px;color:#00F2FE;">{Kd}</td><td style="padding:10px 14px;border-bottom:1px solid rgba(255,255,255,0.06);font-size:13px;color:#8892A4;">Derivative Gain</td></tr>
+    </table>
+
+    <h2 class="section-title">Performance KPIs</h2>
+    <table>
+        <tr><th style="text-align:left;">Metric</th><th style="text-align:left;">Value</th><th style="text-align:left;">Unit</th></tr>
+        <tr><td style="padding:10px 14px;border-bottom:1px solid rgba(255,255,255,0.06);font-size:13px;">IAE</td><td style="padding:10px 14px;border-bottom:1px solid rgba(255,255,255,0.06);font-family:'JetBrains Mono',monospace;font-size:13px;color:#00F2FE;">{kpis['IAE']}</td><td style="padding:10px 14px;border-bottom:1px solid rgba(255,255,255,0.06);font-size:13px;color:#8892A4;">error·s</td></tr>
+        <tr><td style="padding:10px 14px;border-bottom:1px solid rgba(255,255,255,0.06);font-size:13px;">ISE</td><td style="padding:10px 14px;border-bottom:1px solid rgba(255,255,255,0.06);font-family:'JetBrains Mono',monospace;font-size:13px;color:#00F2FE;">{kpis['ISE']}</td><td style="padding:10px 14px;border-bottom:1px solid rgba(255,255,255,0.06);font-size:13px;color:#8892A4;">error²·s</td></tr>
+        <tr><td style="padding:10px 14px;border-bottom:1px solid rgba(255,255,255,0.06);font-size:13px;">Overshoot</td><td style="padding:10px 14px;border-bottom:1px solid rgba(255,255,255,0.06);font-family:'JetBrains Mono',monospace;font-size:13px;color:#00F2FE;">{kpis['Overshoot']}%</td><td style="padding:10px 14px;border-bottom:1px solid rgba(255,255,255,0.06);font-size:13px;color:#8892A4;">of setpoint</td></tr>
+        <tr><td style="padding:10px 14px;border-bottom:1px solid rgba(255,255,255,0.06);font-size:13px;">Rise Time</td><td style="padding:10px 14px;border-bottom:1px solid rgba(255,255,255,0.06);font-family:'JetBrains Mono',monospace;font-size:13px;color:#00F2FE;">{kpis['Rise Time']}s</td><td style="padding:10px 14px;border-bottom:1px solid rgba(255,255,255,0.06);font-size:13px;color:#8892A4;">0-90% target</td></tr>
+        <tr><td style="padding:10px 14px;border-bottom:1px solid rgba(255,255,255,0.06);font-size:13px;">Settling Time</td><td style="padding:10px 14px;border-bottom:1px solid rgba(255,255,255,0.06);font-family:'JetBrains Mono',monospace;font-size:13px;color:#00F2FE;">{kpis['Settling Time']}s</td><td style="padding:10px 14px;border-bottom:1px solid rgba(255,255,255,0.06);font-size:13px;color:#8892A4;">±2% band</td></tr>
+        <tr><td style="padding:10px 14px;border-bottom:1px solid rgba(255,255,255,0.06);font-size:13px;">Steady-State Error</td><td style="padding:10px 14px;border-bottom:1px solid rgba(255,255,255,0.06);font-family:'JetBrains Mono',monospace;font-size:13px;color:#00F2FE;">{kpis['Steady-State Error']}</td><td style="padding:10px 14px;border-bottom:1px solid rgba(255,255,255,0.06);font-size:13px;color:#8892A4;">{cfg['unit']}</td></tr>
+    </table>
+
+    {zn_section}
+
+    <h2 class="section-title">Alarm Log Summary</h2>
+    <div style="display:flex;gap:16px;margin-bottom:16px;">
+        <span class="badge badge-critical">CRITICAL: {critical_count}</span>
+        <span class="badge badge-warning">WARNING: {warning_count}</span>
+        <span class="badge badge-optimal">OPTIMAL: {optimal_count}</span>
+    </div>
+    <table>
+        <tr><th style="text-align:left;">Timestamp</th><th style="text-align:left;">Severity</th><th style="text-align:left;">Code</th><th style="text-align:left;">Message</th></tr>
+        {alarm_rows if alarm_rows else '<tr><td colspan="4" style="padding:14px;text-align:center;color:#8892A4;font-size:13px;">No alarm events recorded during this session.</td></tr>'}
+    </table>
+
+    <div class="footer">
+        NEXUS v4.0 | Industrial PID Operations Platform | Ali Nasreddine Benseffa | &copy; 2026
+    </div>
+</div>
+</body>
+</html>"""
+    return html
+
+# ============================================================================
 # PLOTLY CHART CONFIGURATION
 # ============================================================================
 PLOTLY_TEMPLATE = {
@@ -539,12 +915,21 @@ with st.sidebar:
     </div>
     """, unsafe_allow_html=True)
     
-    if st.button("🚪 Sign Out", use_container_width=True):
+    if st.button("Sign Out", use_container_width=True):
         if supabase:
             supabase.auth.sign_out()
         st.session_state.user = None
         st.rerun()
     
+    st.markdown('<div class="tactical-divider"></div>', unsafe_allow_html=True)
+
+    st.markdown('<div class="section-header">Data Source</div>', unsafe_allow_html=True)
+    data_source = st.radio(
+        "Source",
+        ["Digital Twin Engine (Simulator)", "Real Hardware Gateway"],
+        label_visibility="collapsed"
+    )
+
     st.markdown('<div class="tactical-divider"></div>', unsafe_allow_html=True)
     
     st.markdown('<div class="section-header">Process Selection</div>', unsafe_allow_html=True)
@@ -580,15 +965,52 @@ with st.sidebar:
         cfg['min_sp'], cfg['max_sp'], cfg['default_sp'], 0.5
     )
 
+    st.markdown('<div class="tactical-divider"></div>', unsafe_allow_html=True)
+
+    st.markdown('<div class="section-header">Auto-Tuning</div>', unsafe_allow_html=True)
+    if st.button("Run Ziegler-Nichols Calibration", use_container_width=True, key="zn_btn"):
+        zn_result = ziegler_nichols_tune(selected_process)
+        st.session_state["zn_result"] = zn_result
+        st.session_state["zn_applied"] = selected_process
+        st.rerun()
+
+    if "zn_result" in st.session_state and st.session_state.get("zn_applied") == selected_process:
+        zn = st.session_state["zn_result"]
+        st.markdown(f"""
+        <div class="auto-tune-card">
+            <div style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#00F2FE;margin-bottom:8px;">
+                Ziegler-Nichols Results
+            </div>
+            <div class="auto-tune-result">
+                <div style="margin-bottom:4px;"><span style="color:#8892A4;">Ku:</span> <span style="color:#00F2FE;">{zn['Ku']}</span> &nbsp; <span style="color:#8892A4;">Tu:</span> <span style="color:#00F2FE;">{zn['Tu']}s</span></div>
+                <div style="margin-bottom:4px;"><span style="color:#8892A4;">Classic PID →</span> Kp=<span style="color:#00FF88;">{zn['Classic_PID']['Kp']}</span> Ki=<span style="color:#00FF88;">{zn['Classic_PID']['Ki']}</span> Kd=<span style="color:#00FF88;">{zn['Classic_PID']['Kd']}</span></div>
+                <div style="margin-bottom:4px;"><span style="color:#8892A4;">PI Optimized →</span> Kp=<span style="color:#00FF88;">{zn['PI_Optimized']['Kp']}</span> Ki=<span style="color:#00FF88;">{zn['PI_Optimized']['Ki']}</span> Kd=<span style="color:#00FF88;">0.0</span></div>
+                <div><span style="color:#8892A4;">Modern PID →</span> Kp=<span style="color:#00FF88;">{zn['Modern_PID']['Kp']}</span> Ki=<span style="color:#00FF88;">{zn['Modern_PID']['Ki']}</span> Kd=<span style="color:#00FF88;">{zn['Modern_PID']['Kd']}</span></div>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+        zn_choice = st.radio("Apply preset", ["Classic PID", "PI Optimized", "Modern PID"], key="zn_apply_choice", horizontal=True)
+        if st.button("Apply Gains to Controller", use_container_width=True, key="zn_apply_btn"):
+            chosen = zn[f"{zn_choice.replace(' ', '_')}"]
+            st.session_state["kp_slider"] = chosen["Kp"]
+            st.session_state["ki_slider"] = chosen["Ki"]
+            st.session_state["kd_slider"] = chosen["Kd"]
+            st.success(f"Applied {zn_choice} gains: Kp={chosen['Kp']} Ki={chosen['Ki']} Kd={chosen['Kd']}")
+            del st.session_state["zn_result"]
+            del st.session_state["zn_applied"]
+            st.rerun()
+
 # ============================================================================
 # HEADER BAR
 # ============================================================================
+source_label = "SIMULATION" if "Digital Twin" in data_source else "HARDWARE"
 st.markdown(f"""
 <div class="header-bar">
     <div class="header-title">NEXUS OPERATIONS PLATFORM</div>
     <div class="header-status">
         <span class="status-pulse online"></span>
-        SYSTEM NOMINAL &nbsp;|&nbsp; 
+        {source_label} MODE &nbsp;|&nbsp; 
         <span style="color: #00F2FE;">{selected_process}</span> &nbsp;|&nbsp;
         SIM TIME: 20.0s
     </div>
@@ -611,19 +1033,42 @@ output_data = []
 pv_value = 0.0
 np.random.seed(42)
 
+if "Real Hardware" in data_source:
+    hw_gateway.try_connect()
+    hw_status = "connected" if hw_gateway.connected else "disconnected"
+    st.markdown(f"""
+    <div class="hw-status-bar">
+        <div class="hw-status-dot {hw_status}"></div>
+        <span style="color: #8892A4;">GATEWAY:</span>
+        <span style="color: {'#00FF88' if hw_gateway.connected else '#FF3366'};">{hw_status.upper()}</span>
+        <span style="color: #8892A4; margin-left: auto;">RETRIES: {hw_gateway.retries}/{hw_gateway.max_retries}</span>
+    </div>
+    """, unsafe_allow_html=True)
+
 for step in range(steps):
     t = step * dt
     
-    if control_mode == "Automatic PID":
-        u = pid.update(target_setpoint, pv_value)
+    if "Real Hardware" in data_source:
+        hw_sample = hw_gateway.read_sample()
+        if hw_sample:
+            st.session_state.last_hw_data = hw_sample
+            pv_measured = hw_sample["pv"]
+            u = hw_sample["u"]
+        else:
+            pv_measured = 0.0
+            u = manual_duty if control_mode == "Manual Override" else 0.0
+            st.session_state.hw_retries = hw_gateway.retries
     else:
-        u = manual_duty
+        if control_mode == "Automatic PID":
+            u = pid.update(target_setpoint, pv_value)
+        else:
+            u = manual_duty
+        
+        noise = np.random.normal(0, cfg['noise'])
+        pv_value = max(0.0, pv_value + (u * cfg['a_factor'] - pv_value * cfg['loss_factor']) * dt)
+        pv_measured = pv_value + noise
     
-    noise = np.random.normal(0, cfg['noise'])
-    pv_value = max(0.0, pv_value + (u * cfg['a_factor'] - pv_value * cfg['loss_factor']) * dt)
-    pv_measured = pv_value + noise
-    
-    error = target_setpoint - pv_value
+    error = target_setpoint - pv_measured
     
     time_data.append(round(t, 2))
     pv_data.append(round(pv_measured, 3))
@@ -632,6 +1077,43 @@ for step in range(steps):
     output_data.append(round(u, 2))
 
 kpis = calculate_kpis(np.array(time_data), np.array(error_data), target_setpoint, np.array(pv_data), np.array(output_data))
+alarm_events = evaluate_alarms(pv_data, output_data, target_setpoint, kpis, cfg)
+st.session_state.alarm_log = alarm_events
+
+# ============================================================================
+# ALARM BANNERS
+# ============================================================================
+has_critical = any(a["type"] == "CRITICAL" for a in alarm_events)
+has_warning = any(a["type"] == "WARNING" for a in alarm_events)
+has_optimal = any(a["type"] == "OPTIMAL" for a in alarm_events)
+
+if has_critical:
+    crit_msgs = [a["message"] for a in alarm_events if a["type"] == "CRITICAL"]
+    for msg in crit_msgs[:2]:
+        st.markdown(f"""
+        <div class="alarm-banner critical">
+            <span class="alarm-badge critical">CRITICAL</span>
+            <span>{msg}</span>
+        </div>
+        """, unsafe_allow_html=True)
+elif has_warning:
+    warn_msgs = [a["message"] for a in alarm_events if a["type"] == "WARNING"]
+    for msg in warn_msgs[:2]:
+        st.markdown(f"""
+        <div class="alarm-banner warning">
+            <span class="alarm-badge warning">WARNING</span>
+            <span>{msg}</span>
+        </div>
+        """, unsafe_allow_html=True)
+elif has_optimal:
+    opt_msgs = [a["message"] for a in alarm_events if a["type"] == "OPTIMAL"]
+    if opt_msgs:
+        st.markdown(f"""
+        <div class="alarm-banner optimal">
+            <span class="alarm-badge optimal">OPTIMAL</span>
+            <span>{opt_msgs[0]}</span>
+        </div>
+        """, unsafe_allow_html=True)
 
 # ============================================================================
 # TELEMETRY KPI CARDS
@@ -784,11 +1266,7 @@ fig.update_layout(
     height=520,
     showlegend=True,
     legend=dict(
-        orientation="h",
-        yanchor="bottom",
-        y=1.02,
-        xanchor="right",
-        x=1,
+        orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1,
         font=dict(size=11, color="#8892A4")
     ),
     margin=dict(l=50, r=30, t=40, b=30)
@@ -801,11 +1279,13 @@ fig.update_yaxes(title_text="Output (%)", row=2, col=1)
 st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
 
 # ============================================================================
-# TABS: DATA EXPORT & EVENT LOG
+# TABS: DATA EXPORT, EVENT LOG, ALARM MATRIX, REPORT
 # ============================================================================
 st.markdown('<div class="section-header">Data Operations</div>', unsafe_allow_html=True)
 
-tab_export, tab_log, tab_archive = st.tabs(["📊 Telemetry Export", "📋 Event Log", "☁️ Cloud Archive"])
+tab_export, tab_log, tab_alarms, tab_report = st.tabs([
+    "📊 Telemetry Export", "📋 Event Log", "🚨 Alarm Matrix", "📄 Engineering Report"
+])
 
 with tab_export:
     df_export = pd.DataFrame({
@@ -815,13 +1295,12 @@ with tab_export:
         "Error": error_data,
         "Control_Output_Pct": output_data
     })
-    
     csv_data = df_export.to_csv(index=False)
     
     col_dl1, col_dl2, col_dl3 = st.columns([2, 2, 1])
     with col_dl1:
         st.download_button(
-            "📥 Download Full Telemetry (CSV)",
+            "Download Full Telemetry (CSV)",
             data=csv_data,
             file_name=f"nexus_telemetry_{selected_process.split()[0].lower()}_{int(time.time())}.csv",
             mime="text/csv",
@@ -839,11 +1318,14 @@ with tab_log:
         {"time": "00:00.05", "event": f"Controller: {control_mode}", "level": "CONFIG"},
         {"time": "00:00.05", "event": f"Tuning: Kp={Kp}, Ki={Ki}, Kd={Kd}", "level": "CONFIG"},
         {"time": "00:00.10", "event": f"Setpoint: {target_setpoint} {cfg['unit']}", "level": "SETPOINT"},
-        {"time": f"{time_data[-1]:05.2f}", "event": f"Simulation complete: SSE={kpis['Steady-State Error']}", "level": "SUCCESS" if kpis['Steady-State Error'] < 1 else "WARNING"},
+        {"time": f"{time_data[-1]:05.2f}" if len(time_data) > 0 else "00:00.00",
+         "event": f"Simulation complete: SSE={kpis['Steady-State Error']}",
+         "level": "SUCCESS" if kpis['Steady-State Error'] < 1 else "WARNING"},
     ]
     
     for evt in events:
-        color = {"INFO": "#00F2FE", "CONFIG": "#8892A4", "SETPOINT": "#FFB800", "SUCCESS": "#00FF88", "WARNING": "#FF3366"}[evt["level"]]
+        color = {"INFO": "#00F2FE", "CONFIG": "#8892A4", "SETPOINT": "#FFB800",
+                 "SUCCESS": "#00FF88", "WARNING": "#FF3366"}.get(evt["level"], "#8892A4")
         st.markdown(f"""
         <div style="font-family: 'JetBrains Mono'; font-size: 12px; padding: 6px 0; 
                     border-bottom: 1px solid rgba(255,255,255,0.05);">
@@ -853,8 +1335,61 @@ with tab_log:
         </div>
         """, unsafe_allow_html=True)
 
-with tab_archive:
-    if st.button("💾 Save Simulation to Cloud Database", use_container_width=True):
+with tab_alarms:
+    alarm_df = pd.DataFrame(alarm_events) if alarm_events else pd.DataFrame(columns=["time", "type", "code", "message"])
+    
+    if len(alarm_df) > 0:
+        def style_alarm_row(row):
+            colors = {"CRITICAL": "rgba(255,51,102,0.08)", "WARNING": "rgba(255,184,0,0.08)", "OPTIMAL": "rgba(0,255,136,0.08)"}
+            return [f"background-color: {colors.get(row['type'], 'transparent')}"] * len(row)
+        
+        styled = alarm_df.style.apply(style_alarm_row, axis=1)
+        st.dataframe(styled, use_container_width=True, height=300)
+        
+        crit_count = sum(1 for a in alarm_events if a["type"] == "CRITICAL")
+        warn_count = sum(1 for a in alarm_events if a["type"] == "WARNING")
+        opt_count = sum(1 for a in alarm_events if a["type"] == "OPTIMAL")
+        
+        bc, bw, bo = st.columns(3)
+        bc.metric("Critical", crit_count)
+        bw.metric("Warning", warn_count)
+        bo.metric("Optimal", opt_count)
+    else:
+        st.info("No alarm events detected in current session.")
+
+with tab_report:
+    st.markdown("Generate a styled HTML/PDF engineering test certificate with all session data.")
+    
+    zn_in_report = st.session_state.get("zn_result") if st.session_state.get("zn_applied") == selected_process else None
+    
+    report_html = generate_html_report(
+        selected_process, cfg, control_mode, Kp, Ki, Kd,
+        target_setpoint, kpis, alarm_events, zn_in_report
+    )
+    
+    col_r1, col_r2 = st.columns(2)
+    with col_r1:
+        st.download_button(
+            "Export Test Certificate (HTML)",
+            data=report_html,
+            file_name=f"nexus_certificate_{selected_process.split()[0].lower()}_{int(time.time())}.html",
+            mime="text/html",
+            use_container_width=True
+        )
+    with col_r2:
+        st.download_button(
+            "Export as Printable PDF-ready HTML",
+            data=report_html,
+            file_name=f"nexus_pdf_{selected_process.split()[0].lower()}_{int(time.time())}.html",
+            mime="text/html",
+            use_container_width=True
+        )
+    
+    with st.expander("Preview Report", expanded=False):
+        st.components.v1.html(report_html, height=900, scrolling=True)
+
+with tab_archive := st.tabs(["☁️ Cloud Archive"])[0]:
+    if st.button("Save Simulation to Cloud Database", use_container_width=True):
         if supabase and st.session_state.user:
             try:
                 record = {
@@ -869,11 +1404,11 @@ with tab_archive:
                     "steady_state_error": kpis["Steady-State Error"]
                 }
                 supabase.table("pid_simulations").insert(record).execute()
-                st.success("✅ Simulation record saved to Supabase PostgreSQL.")
+                st.success("Simulation record saved to Supabase PostgreSQL.")
             except Exception as e:
-                st.error(f"❌ Archive failed: {str(e)[:80]}")
+                st.error(f"Archive failed: {str(e)[:80]}")
         else:
-            st.warning("⚠️ Supabase not configured or user not authenticated.")
+            st.warning("Supabase not configured or user not authenticated.")
     
     st.markdown("""
     <div style="background: rgba(15, 22, 35, 0.6); border-radius: 8px; padding: 16px; margin-top: 12px;">
@@ -890,8 +1425,8 @@ with tab_archive:
 st.markdown('<div class="tactical-divider"></div>', unsafe_allow_html=True)
 st.markdown(f"""
 <div style="text-align: center; padding: 20px 0; font-family: 'JetBrains Mono'; font-size: 11px; color: #8892A4;">
-    NEXUS v3.0 | Industrial PID Operations Platform | 
+    NEXUS v4.0 | Industrial PID Operations Platform | 
     Developed by <span style="color: #00F2FE;">Ali Nasreddine Benseffa</span> | 
-    © 2026 Automation Engineering
+    &copy; 2026 Automation Engineering
 </div>
 """, unsafe_allow_html=True)
