@@ -1,0 +1,33 @@
+version: "3.8"
+
+services:
+  nexus-scada:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: nexus-pid-platform
+    ports:
+      - "8501:8501"
+    environment:
+      - SUPABASE_URL=${SUPABASE_URL:-}
+      - SUPABASE_KEY=${SUPABASE_KEY:-}
+      - STREAMLIT_SERVER_HEADLESS=true
+      - STREAMLIT_BROWSER_GATHER_USAGE_STATS=false
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 2G
+        reservations:
+          cpus: "0.5"
+          memory: 512M
+    networks:
+      - nexus-network
+
+networks:
+  nexus-network:
+    driver: bridge
