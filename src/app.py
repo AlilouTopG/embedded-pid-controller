@@ -386,7 +386,21 @@ with tab_scada:
         sp_line_y = 180 - (sp_pct / 100.0 * 130)
 
         svg_synoptic = f"""
-        <div style="background:linear-gradient(180deg,#06080E 0%,#0B101A 100%);border:1px solid #1A263B;border-radius:10px;padding:16px;margin-bottom:14px;">
+        <style>
+            .synoptic-tank {{ will-change: contents; transform: translateZ(0); }}
+            .liquid-rect {{ transition: y 0.6s cubic-bezier(0.4, 0, 0.2, 1), height 0.6s cubic-bezier(0.4, 0, 0.2, 1); will-change: y, height; transform: translateZ(0); }}
+            .liquid-surface {{ transition: y 0.6s cubic-bezier(0.4, 0, 0.2, 1); will-change: y; transform: translateZ(0); }}
+            .sp-line {{ transition: y1 0.6s ease-out, y2 0.6s ease-out, transform 0.6s ease-out; will-change: transform; transform-origin: center; transform: translateZ(0); }}
+            .sp-label-bg {{ transition: y 0.6s ease-out; will-change: y; transform: translateZ(0); }}
+            .sp-label-text {{ transition: y 0.6s ease-out; will-change: y; transform: translateZ(0); }}
+            .valve-group {{ transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1), filter 0.6s ease, fill 0.6s ease; transform-origin: 60px 103px; will-change: transform; transform: translateZ(0); }}
+            .valve-stem {{ transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1); transform-origin: center; will-change: transform; transform: translateZ(0); }}
+            .valve-halo {{ transition: opacity 0.6s ease, filter 0.6s ease; will-change: opacity, filter; transform: translateZ(0); }}
+            .valve-core {{ transition: opacity 0.6s ease; will-change: opacity; transform: translateZ(0); }}
+            .pv-readout {{ transition: opacity 0.3s ease; transform: translateZ(0); }}
+            .status-led {{ transition: fill 0.4s ease; transform: translateZ(0); }}
+        </style>
+        <div class="synoptic-tank" style="background:linear-gradient(180deg,#06080E 0%,#0B101A 100%);border:1px solid #1A263B;border-radius:10px;padding:16px;margin-bottom:14px;">
             <div style="font-family:'JetBrains Mono',monospace;font-size:0.72rem;color:#64748B;letter-spacing:1.5px;margin-bottom:10px;">
                 INDUSTRIAL DYNAMIC SVG SYNOPTIC TWIN
             </div>
@@ -419,18 +433,14 @@ with tab_scada:
 
                 <!-- Liquid Level -->
                 <g clip-path="url(#tankClip)">
-                    <rect x="100" y="{liquid_y}" width="220" height="{180 - liquid_y}" fill="url(#liquidGrad)">
-                        <animate attributeName="y" values="{liquid_y};{liquid_y - 2};{liquid_y}" dur="2.5s" repeatCount="indefinite"/>
-                    </rect>
-                    <rect x="100" y="{liquid_y}" width="220" height="4" fill="#00E5FF" opacity="0.5" filter="url(#cyanGlow)">
-                        <animate attributeName="opacity" values="0.3;0.7;0.3" dur="1.8s" repeatCount="indefinite"/>
-                    </rect>
+                    <rect class="liquid-rect" x="100" y="{liquid_y}" width="220" height="{180 - liquid_y}" fill="url(#liquidGrad)"/>
+                    <rect class="liquid-surface" x="100" y="{liquid_y}" width="220" height="4" fill="#00E5FF" opacity="0.5" filter="url(#cyanGlow)"/>
                 </g>
 
                 <!-- Setpoint Line -->
-                <line x1="100" y1="{sp_line_y}" x2="320" y2="{sp_line_y}" stroke="#FFD700" stroke-width="2" stroke-dasharray="8,5" filter="url(#cyanGlow)"/>
-                <rect x="325" y="{sp_line_y - 10}" width="62" height="20" rx="3" fill="#0D1117" stroke="#FFD700" stroke-width="0.8"/>
-                <text x="356" y="{sp_line_y + 4}" text-anchor="middle" fill="#FFD700" font-family="JetBrains Mono" font-size="10" font-weight="600">SP {sp_pct:.0f}%</text>
+                <line class="sp-line" x1="100" y1="{sp_line_y}" x2="320" y2="{sp_line_y}" stroke="#FFD700" stroke-width="2" stroke-dasharray="8,5" filter="url(#cyanGlow)"/>
+                <rect class="sp-label-bg" x="325" y="{sp_line_y - 10}" width="62" height="20" rx="3" fill="#0D1117" stroke="#FFD700" stroke-width="0.8"/>
+                <text class="sp-label-text" x="356" y="{sp_line_y + 4}" text-anchor="middle" fill="#FFD700" font-family="JetBrains Mono" font-size="10" font-weight="600">SP {sp_pct:.0f}%</text>
 
                 <!-- Tank Level Labels -->
                 <text x="90" y="48" text-anchor="end" fill="#475569" font-family="JetBrains Mono" font-size="9">100%</text>
@@ -442,10 +452,10 @@ with tab_scada:
                 <text x="60" y="88" text-anchor="middle" fill="#475569" font-family="JetBrains Mono" font-size="8">FEED IN</text>
 
                 <!-- Control Valve -->
-                <g transform="translate(60, 103)">
-                    <circle cx="0" cy="0" r="14" fill="#0D1117" stroke="#FF3D00" stroke-width="1.5" opacity="{0.4 + valve_glow * 0.6}" filter="url(#orangeGlow)"/>
-                    <line x1="-9" y1="-9" x2="9" y2="9" stroke="#FF3D00" stroke-width="2.5" transform="rotate({valve_angle})" stroke-linecap="round"/>
-                    <circle cx="0" cy="0" r="3" fill="#FF3D00" opacity="{0.5 + valve_glow * 0.5}"/>
+                <g class="valve-group" transform="translate(60, 103)">
+                    <circle class="valve-halo" cx="0" cy="0" r="14" fill="#0D1117" stroke="#FF3D00" stroke-width="1.5" opacity="{0.4 + valve_glow * 0.6}" filter="url(#orangeGlow)"/>
+                    <line class="valve-stem" x1="-9" y1="-9" x2="9" y2="9" stroke="#FF3D00" stroke-width="2.5" transform="rotate({valve_angle})" stroke-linecap="round"/>
+                    <circle class="valve-core" cx="0" cy="0" r="3" fill="#FF3D00" opacity="{0.5 + valve_glow * 0.5}"/>
                 </g>
                 <text x="60" y="132" text-anchor="middle" fill="#FF3D00" font-family="JetBrains Mono" font-size="8" font-weight="600">MV {mv_pct:.0f}%</text>
 
@@ -457,12 +467,12 @@ with tab_scada:
                 <!-- PV Digital Readout -->
                 <rect x="450" y="55" width="160" height="55" rx="6" fill="#06080E" stroke="#00E5FF" stroke-width="1" opacity="0.9"/>
                 <text x="460" y="72" fill="#475569" font-family="JetBrains Mono" font-size="9" letter-spacing="1">PROCESS VALUE</text>
-                <text x="460" y="100" fill="#00E5FF" font-family="JetBrains Mono" font-size="26" font-weight="800" filter="url(#cyanGlow)">{last_pv:.2f}</text>
+                <text class="pv-readout" x="460" y="100" fill="#00E5FF" font-family="JetBrains Mono" font-size="26" font-weight="800" filter="url(#cyanGlow)">{last_pv:.2f}</text>
                 <text x="575" y="100" fill="#00E5FF" font-family="JetBrains Mono" font-size="14">%</text>
 
                 <!-- Status Indicator -->
                 <rect x="450" y="125" width="160" height="40" rx="6" fill="#06080E" stroke="#1A263B" stroke-width="1"/>
-                <circle cx="470" cy="145" r="5" fill="{'#00E676' if not st.session_state.estop and st.session_state.running else '#EF4444' if st.session_state.estop else '#475569'}">
+                <circle class="status-led" cx="470" cy="145" r="5" fill="{'#00E676' if not st.session_state.estop and st.session_state.running else '#EF4444' if st.session_state.estop else '#475569'}">
                     <animate attributeName="opacity" values="0.5;1;0.5" dur="1.2s" repeatCount="indefinite"/>
                 </circle>
                 <text x="482" y="149" fill="{'#00E676' if not st.session_state.estop and st.session_state.running else '#EF4444' if st.session_state.estop else '#475569'}" font-family="JetBrains Mono" font-size="10" font-weight="600">
