@@ -9,7 +9,7 @@ from plotly.subplots import make_subplots
 import streamlit as st
 
 # ==============================================================================
-# 1. إصلاح مسارات النظام في السحابة (Sys.path Resolution)
+# 1. إصلاح مسارات الاستيراد للسحابة (Sys.path Resolution)
 # ==============================================================================
 current_dir = os.path.dirname(os.path.abspath(__file__))
 parent_dir = os.path.abspath(os.path.join(current_dir, ".."))
@@ -28,7 +28,7 @@ for pid_mod in ["core.pid", "src.core.pid", "pid"]:
     except ImportError:
         continue
 
-# استيراد عميل Modbus (اختياري للعتاد الفعلي)
+# استيراد عميل Modbus
 IndustrialModbusClient = None
 for mod_name in ["modbus_client", "src.modbus_client", "drivers.modbus_client"]:
     try:
@@ -43,7 +43,7 @@ for mod_name in ["modbus_client", "src.modbus_client", "drivers.modbus_client"]:
 # 2. إعداد واجهة Cyberpunk / Dark OLED
 # ==============================================================================
 st.set_page_config(
-    page_title="APEX SCADA | Industrial Telemetry & Modbus Gateway",
+    page_title="APEX SCADA | Industrial Synoptic Twin",
     page_icon="⚡",
     layout="wide",
     initial_sidebar_state="expanded",
@@ -156,7 +156,6 @@ if "disturbance_val" not in st.session_state:
 if "noise_enabled" not in st.session_state:
     st.session_state.noise_enabled = False
 
-# حالة بوابة Modbus في السحابة
 if "modbus_active" not in st.session_state:
     st.session_state.modbus_active = True
 if "hex_logs" not in st.session_state:
@@ -172,7 +171,7 @@ PRESETS = {
 }
 
 # ==============================================================================
-# 4. لوحة التحكم الجانبية (Sidebar)
+# 4. لوحة التحكم الجانبية (Sidebar) - استعادة SP وتحسينه
 # ==============================================================================
 st.sidebar.markdown("### 🚨 SAFETY SYSTEM")
 if st.sidebar.button("🛑 EMERGENCY STOP (E-STOP)", key="btn_estop"):
@@ -187,9 +186,24 @@ if st.session_state.estop:
         st.rerun()
 
 st.sidebar.markdown("---")
+st.sidebar.markdown("### 🎯 TARGET SETPOINT (SP)")
+selected_preset = st.sidebar.selectbox("Plant Dynamics Model:", list(PRESETS.keys()))
+p_cfg = PRESETS[selected_preset]
+
+# شريط Target SP البارز والرئيسي
+sp = st.sidebar.slider(
+    "Target Setpoint (SP %):",
+    min_value=0.0,
+    max_value=100.0,
+    value=float(p_cfg["sp"]),
+    step=1.0,
+    help="Move this slider to change the liquid target setpoint dynamically."
+)
+
+st.sidebar.markdown("---")
 st.sidebar.markdown("### ⚙️ SYSTEM ROUTING")
 st.session_state.op_mode = st.sidebar.radio(
-    "Data Acquisition Pipeline:",
+    "Data Pipeline:",
     ["Cloud Modbus Engine (Zero-Socket)", "Digital Twin Simulation"],
     index=0 if "Modbus" in st.session_state.op_mode else 1,
 )
@@ -210,23 +224,18 @@ if st.sidebar.button("🔄 RESET BUFFER"):
     st.rerun()
 
 st.sidebar.markdown("---")
-st.sidebar.markdown("### 🏭 PROCESS PRESETS")
-selected_preset = st.sidebar.selectbox("Process Dynamics Model:", list(PRESETS.keys()))
-p_cfg = PRESETS[selected_preset]
-
-st.sidebar.markdown("---")
 ctrl_strategy = st.sidebar.radio("Control Strategy:", ["Automatic PID", "Manual Override"])
 st.session_state.manual_mode = (ctrl_strategy == "Manual Override")
 if st.session_state.manual_mode:
     st.session_state.manual_mv = st.sidebar.slider("Manual Output (MV %):", 0.0, 100.0, float(st.session_state.manual_mv))
 
 st.sidebar.markdown("---")
+st.sidebar.markdown("### ⚡ PID TUNING")
 col_p1, col_p2 = st.sidebar.columns(2)
 kp = col_p1.number_input("Kp", min_value=0.0, max_value=50.0, value=p_cfg["kp"], step=0.1)
 ki = col_p2.number_input("Ki", min_value=0.0, max_value=20.0, value=p_cfg["ki"], step=0.05)
 kd = col_p1.number_input("Kd", min_value=0.0, max_value=10.0, value=p_cfg["kd"], step=0.01)
-sp = col_p2.number_input("Target SP", min_value=0.0, max_value=100.0, value=p_cfg["sp"], step=1.0)
-tau = st.sidebar.slider("System Inertia (τ in sec)", 0.5, 12.0, float(p_cfg["tau"]), step=0.1)
+tau = col_p2.number_input("Inertia (τ)", min_value=0.5, max_value=15.0, value=float(p_cfg["tau"]), step=0.1)
 
 st.sidebar.markdown("---")
 col_f1, col_f2 = st.sidebar.columns(2)
@@ -234,7 +243,7 @@ if col_f1.button("⚡ +20% LOAD"):
     st.session_state.disturbance_val += 20.0
 if col_f2.button("⚡ -20% LOAD"):
     st.session_state.disturbance_val -= 20.0
-st.session_state.noise_enabled = st.sidebar.checkbox("Gaussian Noise", value=st.session_state.noise_enabled)
+st.session_state.noise_enabled = st.sidebar.checkbox("Gaussian Sensor Noise", value=st.session_state.noise_enabled)
 
 # تهيئة المتحكم
 if IndustrialPID:
@@ -250,29 +259,32 @@ else:
     controller = None
 
 # ==============================================================================
-# 5. الترويسة الرئيسية
+# 5. الترويسة وشريط الحالة
 # ==============================================================================
 h1, h2 = st.columns([3, 1])
 with h1:
     st.markdown("## ⚡ APEX INDUSTRIAL SCADA | TELEMETRY SUITE")
-    st.caption("Cloud-Resilient Edge Modbus Controller & Real-Time HIL Telemetry Engine")
+    st.caption("Active Cyberpunk Synoptic Twin | Cloud Modbus Edge Controller")
 
 with h2:
     st.markdown("<div style='height: 12px'></div>", unsafe_allow_html=True)
     if st.session_state.estop:
         st.markdown('<b style="color: #EF4444; font-family: monospace;">🛑 EMERGENCY STOP ACTIVE</b>', unsafe_allow_html=True)
     elif st.session_state.running:
-        status_label = "MODBUS TCP (ACTIVE)" if "Modbus" in st.session_state.op_mode else "DIGITAL TWIN (ACTIVE)"
+        status_label = "MODBUS LIVE (HIL)" if "Modbus" in st.session_state.op_mode else "DIGITAL TWIN LIVE"
         st.markdown(f'<span class="pulse-live"></span> <b style="color: #00E676; font-family: monospace;">{status_label}</b>', unsafe_allow_html=True)
     else:
         st.markdown('<b style="color: #64748B; font-family: monospace;">● SYSTEM STANDBY</b>', unsafe_allow_html=True)
 
 tab_scada, tab_gateway, tab_historian = st.tabs([
-    "📊 Dynamic Closed-Loop & Gauges",
+    "📊 Dynamic Closed-Loop & Synoptic",
     "🔌 Modbus TCP Hardware Gateway",
     "📋 Historian & CSV Export",
 ])
 
+# -------------------------------------------------------------
+# دالة رسم العدادات نصف الدائرية
+# -------------------------------------------------------------
 def build_semi_circular_gauges(pv: float, sp_val: float, mv: float) -> go.Figure:
     fig = make_subplots(
         rows=1, cols=2,
@@ -329,6 +341,95 @@ def build_semi_circular_gauges(pv: float, sp_val: float, mv: float) -> go.Figure
     return fig
 
 # -------------------------------------------------------------
+# دالة رسم التوأم البصري التفاعلي SVG النظيفة والمحقونة بأمان
+# -------------------------------------------------------------
+def render_clean_svg_synoptic(pv: float, sp_val: float, mv: float, is_estop: bool):
+    """رسم الخزان والصمام بالـ SVG دون مسافات بادئة لمنع خطأ تحول الكود لنص."""
+    clamped_pv = max(0.0, min(100.0, pv))
+    clamped_sp = max(0.0, min(100.0, sp_val))
+    clamped_mv = max(0.0, min(100.0, mv))
+    
+    # حساب ارتفاع السائل وموقع خط الهدف داخل الخزان (ارتفاع الخزان 160px والقاع عند y=200)
+    tank_bottom = 200.0
+    tank_height = 160.0
+    liquid_h = (clamped_pv / 100.0) * tank_height
+    liquid_y = tank_bottom - liquid_h
+    sp_y = tank_bottom - (clamped_sp / 100.0) * tank_height
+    
+    # زاوية دوران الصمام وتوهجه
+    valve_rot = int((clamped_mv / 100.0) * 90)
+    valve_opacity = max(0.25, min(1.0, clamped_mv / 100.0))
+    
+    status_label = "E-STOP" if is_estop else "RUNNING"
+    status_color = "#EF4444" if is_estop else "#00E676"
+    err = clamped_sp - clamped_pv
+    err_color = "#00E676" if abs(err) < 2.0 else "#FFAB00" if abs(err) < 10.0 else "#EF4444"
+
+    # كود SVG بدون أي 4 مسافات في البداية (Zero indentation)
+    svg_markup = f"""<div style="display: flex; justify-content: center; width: 100%; margin: 12px 0;">
+<svg viewBox="0 0 650 240" style="width: 100%; max-width: 650px; height: 230px; background: #06080E; border: 1px solid #162032; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.5);">
+<defs>
+<linearGradient id="tankBg" x1="0%" y1="0%" x2="100%" y2="0%">
+<stop offset="0%" stop-color="#080C14"/>
+<stop offset="100%" stop-color="#0F172A"/>
+</linearGradient>
+<linearGradient id="liquidGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+<stop offset="0%" stop-color="#00E5FF" stop-opacity="0.85"/>
+<stop offset="100%" stop-color="#0052CC" stop-opacity="0.95"/>
+</linearGradient>
+<filter id="cyanGlow" x="-20%" y="-20%" width="140%" height="140%">
+<feGaussianBlur stdDeviation="3" result="blur"/>
+<feComposite in="SourceGraphic" in2="blur" operator="over"/>
+</filter>
+<filter id="orangeGlow" x="-30%" y="-30%" width="160%" height="160%">
+<feGaussianBlur stdDeviation="4" result="blur"/>
+<feComposite in="SourceGraphic" in2="blur" operator="over"/>
+</filter>
+<clipPath id="tankClip">
+<rect x="100" y="40" width="220" height="160" rx="6"/>
+</clipPath>
+</defs>
+<style>
+.liquid-rect {{ transition: y 0.6s cubic-bezier(0.4, 0, 0.2, 1), height 0.6s cubic-bezier(0.4, 0, 0.2, 1); will-change: y, height; }}
+.sp-elem {{ transition: y 0.6s ease-out, y1 0.6s ease-out, y2 0.6s ease-out; will-change: y, y1, y2; }}
+.valve-stem {{ transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1); transform-origin: 60px 103px; }}
+</style>
+<rect x="100" y="40" width="220" height="160" rx="6" fill="url(#tankBg)" stroke="#1A263B" stroke-width="1.5"/>
+<rect x="100" y="40" width="220" height="160" rx="6" fill="none" stroke="#1E293B" stroke-width="0.5" stroke-dasharray="4,3"/>
+<g clip-path="url(#tankClip)">
+<rect class="liquid-rect" x="100" y="{liquid_y:.2f}" width="220" height="{liquid_h:.2f}" fill="url(#liquidGrad)"/>
+<rect class="liquid-rect" x="100" y="{liquid_y:.2f}" width="220" height="3" fill="#00E5FF" opacity="0.8" filter="url(#cyanGlow)"/>
+</g>
+<line class="sp-elem" x1="100" y1="{sp_y:.2f}" x2="320" y2="{sp_y:.2f}" stroke="#FFD700" stroke-width="2" stroke-dasharray="6,4" filter="url(#cyanGlow)"/>
+<rect class="sp-elem" x="325" y="{sp_y - 10:.2f}" width="65" height="20" rx="3" fill="#0D1117" stroke="#FFD700" stroke-width="0.8"/>
+<text class="sp-elem" x="357" y="{sp_y + 4:.2f}" text-anchor="middle" fill="#FFD700" font-family="JetBrains Mono" font-size="10" font-weight="600">SP {clamped_sp:.0f}%</text>
+<text x="90" y="48" text-anchor="end" fill="#64748B" font-family="JetBrains Mono" font-size="9">100%</text>
+<text x="90" y="200" text-anchor="end" fill="#64748B" font-family="JetBrains Mono" font-size="9">0%</text>
+<text x="90" y="{sp_y + 3:.2f}" text-anchor="end" fill="#FFD700" font-family="JetBrains Mono" font-size="8">SP</text>
+<rect x="20" y="95" width="80" height="16" rx="2" fill="#0B101A" stroke="#1A263B" stroke-width="1"/>
+<text x="50" y="88" text-anchor="middle" fill="#64748B" font-family="JetBrains Mono" font-size="8">FEED IN</text>
+<circle cx="60" cy="103" r="14" fill="#0D1117" stroke="#FF3D00" stroke-width="1.5" opacity="{valve_opacity:.2f}" filter="url(#orangeGlow)"/>
+<line class="valve-stem" x1="51" y1="94" x2="69" y2="112" stroke="#FF3D00" stroke-width="2.5" transform="rotate({valve_rot}, 60, 103)" stroke-linecap="round"/>
+<circle cx="60" cy="103" r="3.5" fill="#FF3D00"/>
+<text x="60" y="132" text-anchor="middle" fill="#FF3D00" font-family="JetBrains Mono" font-size="8" font-weight="600">MV {clamped_mv:.1f}%</text>
+<rect x="320" y="95" width="80" height="16" rx="2" fill="#0B101A" stroke="#1A263B" stroke-width="1"/>
+<text x="360" y="88" text-anchor="middle" fill="#64748B" font-family="JetBrains Mono" font-size="8">FEED OUT</text>
+<polygon points="400,95 412,103 400,111" fill="#1A263B"/>
+<rect x="440" y="45" width="180" height="55" rx="6" fill="#090D14" stroke="#00E5FF" stroke-width="1"/>
+<text x="452" y="63" fill="#64748B" font-family="JetBrains Mono" font-size="8" letter-spacing="1">PROCESS LEVEL (PV)</text>
+<text x="452" y="90" fill="#00E5FF" font-family="JetBrains Mono" font-size="24" font-weight="800" filter="url(#cyanGlow)">{clamped_pv:.2f}</text>
+<text x="590" y="90" fill="#00E5FF" font-family="JetBrains Mono" font-size="14">%</text>
+<rect x="440" y="110" width="180" height="38" rx="6" fill="#090D14" stroke="#1A263B" stroke-width="1"/>
+<circle cx="458" cy="129" r="4.5" fill="{status_color}"/>
+<text x="472" y="133" fill="{status_color}" font-family="JetBrains Mono" font-size="10" font-weight="700">{status_label}</text>
+<rect x="440" y="158" width="180" height="35" rx="6" fill="#090D14" stroke="#1A263B" stroke-width="1"/>
+<text x="452" y="180" fill="#64748B" font-family="JetBrains Mono" font-size="9">ERROR (DELTA)</text>
+<text x="605" y="180" text-anchor="end" fill="{err_color}" font-family="JetBrains Mono" font-size="12" font-weight="700">{err:+.2f}%</text>
+</svg>
+</div>"""
+    st.markdown(svg_markup, unsafe_allow_html=True)
+
+# -------------------------------------------------------------
 # التبويب الأول: شاشة القياس والعدادات اللحظية
 # -------------------------------------------------------------
 with tab_scada:
@@ -368,126 +469,21 @@ with tab_scada:
         last_mv = hist["mv"][-1] if hist["mv"] else 0.0
         error = sp - last_pv
 
+        # 1. بطاقات KPI
         k1, k2, k3, k4 = st.columns(4)
         k1.markdown(f'<div class="metric-card"><div class="metric-title">PROCESS VALUE (PV)</div><div class="metric-value" style="color: #00E5FF;">{last_pv:.2f}%</div></div>', unsafe_allow_html=True)
         k2.markdown(f'<div class="metric-card"><div class="metric-title">TARGET SETPOINT (SP)</div><div class="metric-value" style="color: #FFD700;">{sp:.2f}%</div></div>', unsafe_allow_html=True)
         k3.markdown(f'<div class="metric-card"><div class="metric-title">ACTUATOR OUTPUT (MV)</div><div class="metric-value" style="color: #FF3D00;">{last_mv:.2f}%</div></div>', unsafe_allow_html=True)
         k4.markdown(f'<div class="metric-card"><div class="metric-title">TRACKING ERROR</div><div class="metric-value" style="color: {"#00E676" if abs(error)<2 else "#FFAB00"};">{error:+.2f}%</div></div>', unsafe_allow_html=True)
 
+        # 2. العدادات نصف الدائرية
         fig_dials = build_semi_circular_gauges(last_pv, sp, last_mv)
         st.plotly_chart(fig_dials, use_container_width=True, key="live_tab1_dials", config={"displayModeBar": False, "staticPlot": True})
 
-        pv_pct = max(0.0, min(100.0, last_pv))
-        sp_pct = max(0.0, min(100.0, sp))
-        mv_pct = max(0.0, min(100.0, last_mv))
-        valve_angle = int(mv_pct * 0.9)
-        valve_glow = mv_pct / 100.0
-        liquid_y = 180 - (pv_pct / 100.0 * 130)
-        sp_line_y = 180 - (sp_pct / 100.0 * 130)
+        # 3. التوأم البصري SVG التفاعلي (رسم حقيقي بدون نص)
+        render_clean_svg_synoptic(last_pv, sp, last_mv, st.session_state.estop)
 
-        svg_synoptic = f"""
-        <style>
-            .synoptic-tank {{ will-change: contents; transform: translateZ(0); }}
-            .liquid-rect {{ transition: y 0.6s cubic-bezier(0.4, 0, 0.2, 1), height 0.6s cubic-bezier(0.4, 0, 0.2, 1); will-change: y, height; transform: translateZ(0); }}
-            .liquid-surface {{ transition: y 0.6s cubic-bezier(0.4, 0, 0.2, 1); will-change: y; transform: translateZ(0); }}
-            .sp-line {{ transition: y1 0.6s ease-out, y2 0.6s ease-out, transform 0.6s ease-out; will-change: transform; transform-origin: center; transform: translateZ(0); }}
-            .sp-label-bg {{ transition: y 0.6s ease-out; will-change: y; transform: translateZ(0); }}
-            .sp-label-text {{ transition: y 0.6s ease-out; will-change: y; transform: translateZ(0); }}
-            .valve-group {{ transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1), filter 0.6s ease, fill 0.6s ease; transform-origin: 60px 103px; will-change: transform; transform: translateZ(0); }}
-            .valve-stem {{ transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1); transform-origin: center; will-change: transform; transform: translateZ(0); }}
-            .valve-halo {{ transition: opacity 0.6s ease, filter 0.6s ease; will-change: opacity, filter; transform: translateZ(0); }}
-            .valve-core {{ transition: opacity 0.6s ease; will-change: opacity; transform: translateZ(0); }}
-            .pv-readout {{ transition: opacity 0.3s ease; transform: translateZ(0); }}
-            .status-led {{ transition: fill 0.4s ease; transform: translateZ(0); }}
-        </style>
-        <div class="synoptic-tank" style="background:linear-gradient(180deg,#06080E 0%,#0B101A 100%);border:1px solid #1A263B;border-radius:10px;padding:16px;margin-bottom:14px;">
-            <div style="font-family:'JetBrains Mono',monospace;font-size:0.72rem;color:#64748B;letter-spacing:1.5px;margin-bottom:10px;">
-                INDUSTRIAL DYNAMIC SVG SYNOPTIC TWIN
-            </div>
-            <svg viewBox="0 0 820 240" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:auto;">
-                <defs>
-                    <linearGradient id="tankBg" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stop-color="#0D1117"/>
-                        <stop offset="100%" stop-color="#06080E"/>
-                    </linearGradient>
-                    <linearGradient id="liquidGrad" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stop-color="#00E5FF" stop-opacity="0.85"/>
-                        <stop offset="100%" stop-color="#0077B6" stop-opacity="0.95"/>
-                    </linearGradient>
-                    <clipPath id="tankClip">
-                        <rect x="100" y="40" width="220" height="160" rx="6"/>
-                    </clipPath>
-                    <filter id="cyanGlow">
-                        <feGaussianBlur stdDeviation="3" result="blur"/>
-                        <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
-                    </filter>
-                    <filter id="orangeGlow">
-                        <feGaussianBlur stdDeviation="{2 + valve_glow * 4}" result="blur"/>
-                        <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
-                    </filter>
-                </defs>
-
-                <!-- Tank Body -->
-                <rect x="100" y="40" width="220" height="160" rx="6" fill="url(#tankBg)" stroke="#1A263B" stroke-width="1.5"/>
-                <rect x="100" y="40" width="220" height="160" rx="6" fill="none" stroke="#1E293B" stroke-width="0.5" stroke-dasharray="4,3"/>
-
-                <!-- Liquid Level -->
-                <g clip-path="url(#tankClip)">
-                    <rect class="liquid-rect" x="100" y="{liquid_y}" width="220" height="{180 - liquid_y}" fill="url(#liquidGrad)"/>
-                    <rect class="liquid-surface" x="100" y="{liquid_y}" width="220" height="4" fill="#00E5FF" opacity="0.5" filter="url(#cyanGlow)"/>
-                </g>
-
-                <!-- Setpoint Line -->
-                <line class="sp-line" x1="100" y1="{sp_line_y}" x2="320" y2="{sp_line_y}" stroke="#FFD700" stroke-width="2" stroke-dasharray="8,5" filter="url(#cyanGlow)"/>
-                <rect class="sp-label-bg" x="325" y="{sp_line_y - 10}" width="62" height="20" rx="3" fill="#0D1117" stroke="#FFD700" stroke-width="0.8"/>
-                <text class="sp-label-text" x="356" y="{sp_line_y + 4}" text-anchor="middle" fill="#FFD700" font-family="JetBrains Mono" font-size="10" font-weight="600">SP {sp_pct:.0f}%</text>
-
-                <!-- Tank Level Labels -->
-                <text x="90" y="48" text-anchor="end" fill="#475569" font-family="JetBrains Mono" font-size="9">100%</text>
-                <text x="90" y="185" text-anchor="end" fill="#475569" font-family="JetBrains Mono" font-size="9">0%</text>
-                <text x="90" y="{sp_line_y + 4}" text-anchor="end" fill="#FFD700" font-family="JetBrains Mono" font-size="8">SP</text>
-
-                <!-- Feed Pipe (Left) -->
-                <rect x="20" y="95" width="80" height="16" rx="3" fill="#0B101A" stroke="#1A263B" stroke-width="1"/>
-                <text x="60" y="88" text-anchor="middle" fill="#475569" font-family="JetBrains Mono" font-size="8">FEED IN</text>
-
-                <!-- Control Valve -->
-                <g class="valve-group" transform="translate(60, 103)">
-                    <circle class="valve-halo" cx="0" cy="0" r="14" fill="#0D1117" stroke="#FF3D00" stroke-width="1.5" opacity="{0.4 + valve_glow * 0.6}" filter="url(#orangeGlow)"/>
-                    <line class="valve-stem" x1="-9" y1="-9" x2="9" y2="9" stroke="#FF3D00" stroke-width="2.5" transform="rotate({valve_angle})" stroke-linecap="round"/>
-                    <circle class="valve-core" cx="0" cy="0" r="3" fill="#FF3D00" opacity="{0.5 + valve_glow * 0.5}"/>
-                </g>
-                <text x="60" y="132" text-anchor="middle" fill="#FF3D00" font-family="JetBrains Mono" font-size="8" font-weight="600">MV {mv_pct:.0f}%</text>
-
-                <!-- Output Pipe (Right) -->
-                <rect x="320" y="95" width="80" height="16" rx="3" fill="#0B101A" stroke="#1A263B" stroke-width="1"/>
-                <text x="360" y="88" text-anchor="middle" fill="#475569" font-family="JetBrains Mono" font-size="8">FEED OUT</text>
-                <polygon points="400,95 415,103 400,111" fill="#1A263B" stroke="#1A263B" stroke-width="0.5"/>
-
-                <!-- PV Digital Readout -->
-                <rect x="450" y="55" width="160" height="55" rx="6" fill="#06080E" stroke="#00E5FF" stroke-width="1" opacity="0.9"/>
-                <text x="460" y="72" fill="#475569" font-family="JetBrains Mono" font-size="9" letter-spacing="1">PROCESS VALUE</text>
-                <text class="pv-readout" x="460" y="100" fill="#00E5FF" font-family="JetBrains Mono" font-size="26" font-weight="800" filter="url(#cyanGlow)">{last_pv:.2f}</text>
-                <text x="575" y="100" fill="#00E5FF" font-family="JetBrains Mono" font-size="14">%</text>
-
-                <!-- Status Indicator -->
-                <rect x="450" y="125" width="160" height="40" rx="6" fill="#06080E" stroke="#1A263B" stroke-width="1"/>
-                <circle class="status-led" cx="470" cy="145" r="5" fill="{'#00E676' if not st.session_state.estop and st.session_state.running else '#EF4444' if st.session_state.estop else '#475569'}">
-                    <animate attributeName="opacity" values="0.5;1;0.5" dur="1.2s" repeatCount="indefinite"/>
-                </circle>
-                <text x="482" y="149" fill="{'#00E676' if not st.session_state.estop and st.session_state.running else '#EF4444' if st.session_state.estop else '#475569'}" font-family="JetBrains Mono" font-size="10" font-weight="600">
-                    {'RUNNING' if not st.session_state.estop and st.session_state.running else 'E-STOP' if st.session_state.estop else 'STANDBY'}
-                </text>
-
-                <!-- Error Delta Bar -->
-                <rect x="450" y="180" width="160" height="30" rx="6" fill="#06080E" stroke="#1A263B" stroke-width="1"/>
-                <text x="460" y="199" fill="#64748B" font-family="JetBrains Mono" font-size="9">ERR</text>
-                <text x="595" y="199" text-anchor="end" fill="{'#00E676' if abs(error) < 2 else '#FFAB00'}" font-family="JetBrains Mono" font-size="12" font-weight="700">{error:+.2f}%</text>
-            </svg>
-        </div>
-        """
-        st.markdown(svg_synoptic, unsafe_allow_html=True)
-
+        # 4. راسم الإشارة المتحرك
         if len(hist["time"]) > 1:
             display_pts = 45
             t_slice = hist["time"][-display_pts:]
@@ -515,7 +511,7 @@ with tab_scada:
     live_scada_viewport()
 
 # -------------------------------------------------------------
-# التبويب الثاني: بوابة Modbus المهجنة والمستقرة للسحابة
+# التبويب الثاني: بوابة Modbus TCP
 # -------------------------------------------------------------
 with tab_gateway:
     st.markdown("### 🔌 INDUSTRIAL MODBUS TCP GATEWAY")
@@ -527,10 +523,6 @@ with tab_gateway:
         st.markdown("#### ⚙️ Gateway Configuration")
         gw_host = st.text_input("Target PLC Host IPv4:", value="127.0.0.1 (Cloud Loopback)")
         gw_port = st.number_input("Industrial Port:", value=5020, step=1)
-        gateway_mode = st.selectbox(
-            "Gateway Engine Mode:",
-            ["Cloud Virtual Modbus Engine (Zero-Socket)", "Direct Socket Connection (Local PLC)"]
-        )
 
     with g_top2:
         st.markdown("#### 🛰️ Gateway Operational Status")
@@ -543,14 +535,12 @@ with tab_gateway:
 
     st.markdown("---")
 
-    # لوحة قراءة السجلات الحية وبث حزم Hex
     @st.fragment(run_every=0.8 if st.session_state.running and not st.session_state.estop else None)
     def live_modbus_register_view():
         hist = st.session_state.telemetry_history
         cur_pv = hist["pv"][-1] if hist["pv"] else st.session_state.pv_live
         cur_mv = hist["mv"][-1] if hist["mv"] else 0.0
 
-        # تحويل القيم إلى تمثيل السجلات الصناعية (Siemens Standard 0 - 27648)
         raw_pv = int(max(0.0, min(100.0, cur_pv)) / 100.0 * 27648)
         raw_mv = int(max(0.0, min(100.0, cur_mv)) / 100.0 * 27648)
         raw_sp = int(max(0.0, min(100.0, sp)) / 100.0 * 27648)
@@ -565,7 +555,6 @@ with tab_gateway:
             {"Address": "40005 (0x04)", "Register Name": "ALARM_REGISTER", "Type": "UINT16", "Raw Value": alarm_word, "Scaled Eng": "DEVIATION" if alarm_word != "0x0000" else "NO_FAULT", "Access": "READ"},
         ]
 
-        # توليد إطارات Hex حقيقية مطابقة لمواصفات Modbus TCP
         latency_val = round(np.random.uniform(1.8, 4.2), 1)
         hex_tx = "00 01 00 00 00 06 01 03 00 00 00 05"
         hex_rx = f"00 01 00 00 00 0D 01 03 0A {raw_pv:04X} {raw_mv:04X} {raw_sp:04X} {int(status_word, 16):04X} {int(alarm_word, 16):04X}"
