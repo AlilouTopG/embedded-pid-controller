@@ -377,6 +377,107 @@ with tab_scada:
         fig_dials = build_semi_circular_gauges(last_pv, sp, last_mv)
         st.plotly_chart(fig_dials, use_container_width=True, key="live_tab1_dials", config={"displayModeBar": False, "staticPlot": True})
 
+        pv_pct = max(0.0, min(100.0, last_pv))
+        sp_pct = max(0.0, min(100.0, sp))
+        mv_pct = max(0.0, min(100.0, last_mv))
+        valve_angle = int(mv_pct * 0.9)
+        valve_glow = mv_pct / 100.0
+        liquid_y = 180 - (pv_pct / 100.0 * 130)
+        sp_line_y = 180 - (sp_pct / 100.0 * 130)
+
+        svg_synoptic = f"""
+        <div style="background:linear-gradient(180deg,#06080E 0%,#0B101A 100%);border:1px solid #1A263B;border-radius:10px;padding:16px;margin-bottom:14px;">
+            <div style="font-family:'JetBrains Mono',monospace;font-size:0.72rem;color:#64748B;letter-spacing:1.5px;margin-bottom:10px;">
+                INDUSTRIAL DYNAMIC SVG SYNOPTIC TWIN
+            </div>
+            <svg viewBox="0 0 820 240" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:auto;">
+                <defs>
+                    <linearGradient id="tankBg" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stop-color="#0D1117"/>
+                        <stop offset="100%" stop-color="#06080E"/>
+                    </linearGradient>
+                    <linearGradient id="liquidGrad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stop-color="#00E5FF" stop-opacity="0.85"/>
+                        <stop offset="100%" stop-color="#0077B6" stop-opacity="0.95"/>
+                    </linearGradient>
+                    <clipPath id="tankClip">
+                        <rect x="100" y="40" width="220" height="160" rx="6"/>
+                    </clipPath>
+                    <filter id="cyanGlow">
+                        <feGaussianBlur stdDeviation="3" result="blur"/>
+                        <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+                    </filter>
+                    <filter id="orangeGlow">
+                        <feGaussianBlur stdDeviation="{2 + valve_glow * 4}" result="blur"/>
+                        <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+                    </filter>
+                </defs>
+
+                <!-- Tank Body -->
+                <rect x="100" y="40" width="220" height="160" rx="6" fill="url(#tankBg)" stroke="#1A263B" stroke-width="1.5"/>
+                <rect x="100" y="40" width="220" height="160" rx="6" fill="none" stroke="#1E293B" stroke-width="0.5" stroke-dasharray="4,3"/>
+
+                <!-- Liquid Level -->
+                <g clip-path="url(#tankClip)">
+                    <rect x="100" y="{liquid_y}" width="220" height="{180 - liquid_y}" fill="url(#liquidGrad)">
+                        <animate attributeName="y" values="{liquid_y};{liquid_y - 2};{liquid_y}" dur="2.5s" repeatCount="indefinite"/>
+                    </rect>
+                    <rect x="100" y="{liquid_y}" width="220" height="4" fill="#00E5FF" opacity="0.5" filter="url(#cyanGlow)">
+                        <animate attributeName="opacity" values="0.3;0.7;0.3" dur="1.8s" repeatCount="indefinite"/>
+                    </rect>
+                </g>
+
+                <!-- Setpoint Line -->
+                <line x1="100" y1="{sp_line_y}" x2="320" y2="{sp_line_y}" stroke="#FFD700" stroke-width="2" stroke-dasharray="8,5" filter="url(#cyanGlow)"/>
+                <rect x="325" y="{sp_line_y - 10}" width="62" height="20" rx="3" fill="#0D1117" stroke="#FFD700" stroke-width="0.8"/>
+                <text x="356" y="{sp_line_y + 4}" text-anchor="middle" fill="#FFD700" font-family="JetBrains Mono" font-size="10" font-weight="600">SP {sp_pct:.0f}%</text>
+
+                <!-- Tank Level Labels -->
+                <text x="90" y="48" text-anchor="end" fill="#475569" font-family="JetBrains Mono" font-size="9">100%</text>
+                <text x="90" y="185" text-anchor="end" fill="#475569" font-family="JetBrains Mono" font-size="9">0%</text>
+                <text x="90" y="{sp_line_y + 4}" text-anchor="end" fill="#FFD700" font-family="JetBrains Mono" font-size="8">SP</text>
+
+                <!-- Feed Pipe (Left) -->
+                <rect x="20" y="95" width="80" height="16" rx="3" fill="#0B101A" stroke="#1A263B" stroke-width="1"/>
+                <text x="60" y="88" text-anchor="middle" fill="#475569" font-family="JetBrains Mono" font-size="8">FEED IN</text>
+
+                <!-- Control Valve -->
+                <g transform="translate(60, 103)">
+                    <circle cx="0" cy="0" r="14" fill="#0D1117" stroke="#FF3D00" stroke-width="1.5" opacity="{0.4 + valve_glow * 0.6}" filter="url(#orangeGlow)"/>
+                    <line x1="-9" y1="-9" x2="9" y2="9" stroke="#FF3D00" stroke-width="2.5" transform="rotate({valve_angle})" stroke-linecap="round"/>
+                    <circle cx="0" cy="0" r="3" fill="#FF3D00" opacity="{0.5 + valve_glow * 0.5}"/>
+                </g>
+                <text x="60" y="132" text-anchor="middle" fill="#FF3D00" font-family="JetBrains Mono" font-size="8" font-weight="600">MV {mv_pct:.0f}%</text>
+
+                <!-- Output Pipe (Right) -->
+                <rect x="320" y="95" width="80" height="16" rx="3" fill="#0B101A" stroke="#1A263B" stroke-width="1"/>
+                <text x="360" y="88" text-anchor="middle" fill="#475569" font-family="JetBrains Mono" font-size="8">FEED OUT</text>
+                <polygon points="400,95 415,103 400,111" fill="#1A263B" stroke="#1A263B" stroke-width="0.5"/>
+
+                <!-- PV Digital Readout -->
+                <rect x="450" y="55" width="160" height="55" rx="6" fill="#06080E" stroke="#00E5FF" stroke-width="1" opacity="0.9"/>
+                <text x="460" y="72" fill="#475569" font-family="JetBrains Mono" font-size="9" letter-spacing="1">PROCESS VALUE</text>
+                <text x="460" y="100" fill="#00E5FF" font-family="JetBrains Mono" font-size="26" font-weight="800" filter="url(#cyanGlow)">{last_pv:.2f}</text>
+                <text x="575" y="100" fill="#00E5FF" font-family="JetBrains Mono" font-size="14">%</text>
+
+                <!-- Status Indicator -->
+                <rect x="450" y="125" width="160" height="40" rx="6" fill="#06080E" stroke="#1A263B" stroke-width="1"/>
+                <circle cx="470" cy="145" r="5" fill="{'#00E676' if not st.session_state.estop and st.session_state.running else '#EF4444' if st.session_state.estop else '#475569'}">
+                    <animate attributeName="opacity" values="0.5;1;0.5" dur="1.2s" repeatCount="indefinite"/>
+                </circle>
+                <text x="482" y="149" fill="{'#00E676' if not st.session_state.estop and st.session_state.running else '#EF4444' if st.session_state.estop else '#475569'}" font-family="JetBrains Mono" font-size="10" font-weight="600">
+                    {'RUNNING' if not st.session_state.estop and st.session_state.running else 'E-STOP' if st.session_state.estop else 'STANDBY'}
+                </text>
+
+                <!-- Error Delta Bar -->
+                <rect x="450" y="180" width="160" height="30" rx="6" fill="#06080E" stroke="#1A263B" stroke-width="1"/>
+                <text x="460" y="199" fill="#64748B" font-family="JetBrains Mono" font-size="9">ERR</text>
+                <text x="595" y="199" text-anchor="end" fill="{'#00E676' if abs(error) < 2 else '#FFAB00'}" font-family="JetBrains Mono" font-size="12" font-weight="700">{error:+.2f}%</text>
+            </svg>
+        </div>
+        """
+        st.markdown(svg_synoptic, unsafe_allow_html=True)
+
         if len(hist["time"]) > 1:
             display_pts = 45
             t_slice = hist["time"][-display_pts:]
