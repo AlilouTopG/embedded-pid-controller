@@ -1,166 +1,85 @@
-import time
 import logging
+import time
+from typing import List, Optional, Tuple
+from pymodbus.client import ModbusTcpClient
+from pymodbus.exceptions import ModbusException
 
-logger = logging.getLogger("nexus.modbus")
-
-_MODBUS_REGISTER_MIN = 0
-_MODBUS_REGISTER_MAX = 65535
-_MODBUS_VALUE_MIN = 0
-_MODBUS_VALUE_MAX = 65535
-_MODBUS_SLAVE_MIN = 1
-_MODBUS_SLAVE_MAX = 247
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger("ModbusClient")
 
 
-def _validate_register_address(address):
-    try:
-        addr = int(address)
-    except (TypeError, ValueError):
-        return False
-    return _MODBUS_REGISTER_MIN <= addr <= _MODBUS_REGISTER_MAX
+class IndustrialModbusClient:
+    """Industrial Modbus TCP Driver for PLC/PAC Interfacing."""
 
+    def __init__(
+        self,
+        host: str = "127.0.0.1",
+        port: int = 5020,
+        timeout: float = 1.0,
+        raw_scale_range: Tuple[int, int] = (0, 27648),
+    ):
+        self.host = host
+        self.port = port
+        self.timeout = timeout
+        self.raw_min, self.raw_max = raw_scale_range
+        self.client: Optional[ModbusTcpClient] = None
+        self.is_connected = False
+        self.last_latency_ms = 0.0
 
-def _validate_register_value(value):
-    try:
-        val = int(value)
-    except (TypeError, ValueError):
-        return False
-    return _MODBUS_VALUE_MIN <= val <= _MODBUS_VALUE_MAX
-
-
-def _validate_slave_id(slave_id):
-    try:
-        sid = int(slave_id)
-    except (TypeError, ValueError):
-        return False
-    return _MODBUS_SLAVE_MIN <= sid <= _MODBUS_SLAVE_MAX
-
-
-class NexusModbusGateway:
-    def __init__(self):
-        self.connected = False
-        self.client = None
-        self.last_data = None
-        self.retries = 0
-        self.max_retries = 5
-        self.host = "127.0.0.1"
-        self.port = 502
-        self.slave_id = 1
-        self.holding_register = 0
-        self.scale_factor = 10.0
-        self.last_pv = 0.0
-        self.last_u = 0.0
-        self.reads_ok = 0
-        self.reads_failed = 0
-        self.write_count = 0
-
-    def connect(self, host, port, slave_id, holding_register, scale_factor):
-        self.host = str(host).strip()
-        self.port = int(port)
-        self.slave_id = int(slave_id)
-        self.holding_register = int(holding_register)
-        self.scale_factor = float(scale_factor)
-        if self.scale_factor == 0:
-            self.scale_factor = 1.0
+    def connect(self) -> bool:
+        """فتح اتصال مقبس الشبكة مع الـ PLC."""
         try:
-            from pymodbus.client import ModbusTcpClient
-            self.client = ModbusTcpClient(
-                host=self.host,
-                port=self.port,
-                timeout=3
-            )
-            if self.client.connect():
-                self.connected = True
-                self.retries = 0
-                return True
-            self.connected = False
-            return False
-        except ImportError:
-            self.connected = False
-            self.client = None
-            return False
+            self.client = ModbusTcpClient(self.host, port=self.port, timeout=self.timeout)
+            self.is_connected = self.client.connect()
+            return self.is_connected
         except Exception as e:
-            logger.warning("Modbus connect failed: {}".format(e))
-            self.connected = False
+            logger.error(f"Modbus connection error: {e}")
+            self.is_connected = False
             return False
 
-    def disconnect(self):
+    def disconnect(self) -> None:
+        """إغلاق الاتصال بأمان."""
         if self.client:
-            try:
-                self.client.close()
-            except Exception:
-                pass
-        self.connected = False
-        self.client = None
+            self.client.close()
+            self.is_connected = False
 
-    def read_holding_registers(self, address, count):
-        if not self.connected or self.client is None:
-            return None
-        if not _validate_register_address(address):
-            return None
+    def read_holding_registers(self, start_address: int = 0, count: int = 5) -> Tuple[Optional[List[int]], float]:
+        """قراءة كتلة من سجلات الـ Holding وحساب زمن الذهاب والإياب (RTT Latency)."""
+        if not self.is_connected:
+            if not self.connect():
+                return None, 0.0
+
+        t0 = time.perf_counter()
         try:
-            result = self.client.read_holding_registers(
-                address=int(address),
-                count=int(count),
-                slave=self.slave_id
-            )
+            result = self.client.read_holding_registers(address=start_address, count=count, slave=1)
+            self.last_latency_ms = (time.perf_counter() - t0) * 1000.0
             if result.isError():
-                self.reads_failed += 1
-                return None
-            self.reads_ok += 1
-            return result.registers
-        except Exception as e:
-            logger.warning("Modbus read failed: {}".format(e))
-            self.reads_failed += 1
-            return None
+                return None, self.last_latency_ms
+            return result.registers, self.last_latency_ms
+        except ModbusException:
+            self.is_connected = False
+            return None, 0.0
 
-    def write_holding_register(self, address, value):
-        if not self.connected or self.client is None:
-            return False
-        if not _validate_register_address(address):
-            logger.warning("Modbus write rejected: invalid address {}".format(address))
-            return False
-        if not _validate_register_value(value):
-            logger.warning("Modbus write rejected: invalid value {}".format(value))
-            return False
+    def read_pv(self, register_address: int = 0) -> Optional[float]:
+        """قراءة المتغير المقاس (PV) من السجل المحدد وتحويله إلى نسبة مئوية (0 - 100%)."""
+        regs, _ = self.read_holding_registers(start_address=register_address, count=1)
+        if regs:
+            raw_val = max(self.raw_min, min(self.raw_max, regs[0]))
+            pv_pct = ((raw_val - self.raw_min) / (self.raw_max - self.raw_min)) * 100.0
+            return round(pv_pct, 2)
+        return None
+
+    def write_mv(self, register_address: int = 1, mv_percent: float = 0.0) -> bool:
+        """كتابة أمر التحكم (MV) في سجل المشغل."""
+        if not self.is_connected:
+            if not self.connect():
+                return False
+
         try:
-            result = self.client.write_register(
-                address=int(address),
-                value=int(value),
-                slave=self.slave_id
-            )
-            if not result.isError():
-                self.write_count += 1
-                return True
+            bounded_mv = max(0.0, min(100.0, mv_percent))
+            raw_val = int(self.raw_min + (bounded_mv / 100.0) * (self.raw_max - self.raw_min))
+            res = self.client.write_register(address=register_address, value=raw_val, slave=1)
+            return not res.isError()
+        except ModbusException:
+            self.is_connected = False
             return False
-        except Exception as e:
-            logger.warning("Modbus write failed: {}".format(e))
-            return False
-
-    def read_sample(self):
-        if not self.connected or self.client is None:
-            return None
-        try:
-            registers = self.read_holding_registers(self.holding_register, 2)
-            if registers and len(registers) >= 2:
-                raw_pv = registers[0]
-                raw_u = registers[1]
-                pv = raw_pv / self.scale_factor
-                u = raw_u / self.scale_factor
-                self.last_pv = pv
-                self.last_u = u
-                return {"pv": pv, "sp": pv, "u": u, "timestamp": time.time()}
-            return self._mock_sample()
-        except Exception:
-            self.retries += 1
-            if self.retries > self.max_retries:
-                self.connected = False
-            return self._mock_sample()
-
-    def _mock_sample(self):
-        import numpy as np
-        self.last_pv = round(142.5 + np.random.normal(0, 2), 2)
-        self.last_u = round(45.2 + np.random.normal(0, 3), 2)
-        return {"pv": self.last_pv, "sp": 150.0, "u": self.last_u, "timestamp": time.time()}
-
-
-modbus_gateway = NexusModbusGateway()
