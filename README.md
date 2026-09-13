@@ -1,69 +1,57 @@
 # ⚙️ Universal Embedded PID Digital Twin Platform
 
-[![Streamlit App](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://embedded-pi-id-controller-kg9raqkqghr7pxmmoudwccggn.streamlit.app)
+[![Streamlit App](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://embedded-pid-controller-kg9raqqjhr7pxmmodwcjjn.streamlit.app/?demo_role=engineer)
 [![Supabase](https://img.shields.io/badge/Supabase-PostgreSQL%20%26%20Auth-green)](https://supabase.com)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-blue)](https://python.org)
 
-An enterprise-grade, cloud-deployed industrial control system simulator and **Digital Twin platform**. It features multi-physics simulation engines, secure user authentication via **Supabase Auth**, and persistent cloud storage protected by **Row-Level Security (RLS)** policies.
-
----
-
-## 🌟 Key Features
-
-* **🔐 Enterprise-Grade Authentication:** Full signup, login, and session persistence using Supabase Auth.
-* **🛡️ Row-Level Security (RLS):** Database isolation ensuring users strictly access their own calibration telemetry.
-* **🎛️ Multi-Physical Process Dynamics:**
-  * **Thermal Furnace (°C):** Heater duty vs. environmental thermal dissipation.
-  * **Liquid Level Tank (m):** Inflow valve vs. hydrostatic discharge dynamics.
-  * **DC Motor Speed (RPM):** Fast transient electrical responses with rotational inertia.
-  * **Gas Tank Pressure (bar):** Compressible gas vessel dynamics under valve actuation.
-* **📊 Dual-Axis Real-Time Telemetry:** Live plotting of Process Variables (PV) against Setpoints (SP) and Actuation Signal Outputs (PWM/Valve %).
-* **💾 Persistent Cloud Storage:** Direct integration with Supabase PostgreSQL for logging process calibrations.
-
----
-
-## 🛠️ Architecture & Tech Stack
-
-* **Frontend & UX:** Streamlit (Custom responsive dashboard layout)
-* **Mathematical Engine:** Dynamic System Difference Equations (Discrete-Time Physics)
-* **Backend & Database:** Supabase (PostgreSQL, Supabase GoTrue Auth, RLS Policies)
-* **Data Visualization:** Matplotlib & Pandas
-* **CI/CD & Cloud:** Streamlit Cloud with Environment Secrets management
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+An industrial-grade control system simulator and **Digital Twin platform** designed for real-time process monitoring, PID calibration, and Hardware-in-the-Loop (HIL) testing. It combines multi-physics simulation engines, industrial telemetry gateways, secure user authentication via **Supabase Auth**, and persistent cloud storage protected by **Row-Level Security (RLS)**.
 
 ---
 
 ## 🚀 Live Demo
 
-Access the hosted application live:
-👉 [Universal PID Control Platform](https://embedded-pi-id-controller-kg9raqkqghr7pxmmoudwccggn.streamlit.app)
+Experience the platform live in Control Engineer mode:  
+👉 **[Launch NEXUS Operations Platform](https://embedded-pid-controller-kg9raqqjhr7pxmmodwcjjn.streamlit.app/?demo_role=engineer)**
+
+---
+
+## 🌟 Key Features
+
+* **🎛️ Multi-Physical Process Dynamics (Digital Twin):**
+  * **Thermal Furnace (°C):** Heater duty vs. ambient dissipation.
+  * **Liquid Level Tank (m):** Inflow valve vs. hydrostatic discharge.
+  * **DC Motor Speed (RPM):** Transient electrical response with rotational inertia.
+  * **Gas Tank Pressure (bar):** Compressible gas vessel dynamics.
+* **🌐 Industrial Telemetry & Gateways:**
+  * **Modbus TCP:** Interface for industrial PLCs.
+  * **MQTT IoT Gateway:** Real-time pub/sub telemetry streaming.
+  * **Serial / USB:** Direct communication with microcontrollers (ESP32 / Arduino).
+* **⚙️ Advanced PID Control & Tuning:**
+  * Manual tuning for $K_p$, $K_i$, and $K_d$.
+  * **Ziegler-Nichols Auto-Tune** (Classic, PI-Optimized, and Modern PID).
+  * Actuator saturation limits with Anti-Windup protection.
+* **📊 Dual-Axis Real-Time Telemetry & KPIs:**
+  * Live tracking of Process Variable (PV) vs. Setpoint (SP) and PWM output.
+  * Real-time metrics: Settling Time, Rise Time, Overshoot, and error integrals (IAE / ISE).
+* **🔐 Enterprise Auth & Cloud Storage:**
+  * User authentication via Supabase GoTrue.
+  * Database isolation via PostgreSQL Row-Level Security (RLS).
+  * Role-Based Access Control (Operator vs. Control Engineer).
+
+---
+
+## 🛠️ Architecture & Tech Stack
+
+* **Frontend & Dashboard:** Streamlit, Plotly, Pandas
+* **Simulation Engine:** Discrete-time difference equations (Python)
+* **Backend & Database:** Supabase (PostgreSQL, Auth, RLS Policies)
+* **Protocols:** Modbus TCP, MQTT, PySerial
+
+---
+
+## 💻 Quick Start (Run Locally)
+
+1. **Clone the repository:**
+   ```bash
+   git clone [https://github.com/AlilouTopG/embedded-pid-controller.git](https://github.com/AlilouTopG/embedded-pid-controller.git)
+   cd embedded-pid-controller
