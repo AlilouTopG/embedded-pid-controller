@@ -6,7 +6,7 @@ from plotly.subplots import make_subplots
 import streamlit as st
 from core.pid import IndustrialPID
 
-# إعداد الصفحة بنمط SCADA الصناعي
+# --- Page Configuration ---
 st.set_page_config(
     page_title="APEX SCADA | Cyberpunk Telemetry Engine",
     page_icon="⚡",
@@ -14,7 +14,7 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-# تخصيص واجهة Cyberpunk / OLED Dark وتأثيرات الإضاءة
+# --- Cyberpunk/OLED Dark UI ---
 st.markdown(
     """
 <style>
@@ -78,16 +78,11 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-# تهيئة الذاكرة التخزينية المشتركة للجلسة
+# --- State Initialization ---
 if "running" not in st.session_state:
     st.session_state.running = False
 if "telemetry_history" not in st.session_state:
-    st.session_state.telemetry_history = {
-        "time": [],
-        "sp": [],
-        "pv": [],
-        "mv": [],
-    }
+    st.session_state.telemetry_history = {"time": [], "sp": [], "pv": [], "mv": []}
 if "pv_live" not in st.session_state:
     st.session_state.pv_live = 0.0
 if "sim_time" not in st.session_state:
@@ -95,14 +90,17 @@ if "sim_time" not in st.session_state:
 if "disturbance_val" not in st.session_state:
     st.session_state.disturbance_val = 0.0
 
-# --- الشريط الجانبي: لوحة التحكم ---
+# --- Sidebar: Control Station ---
 st.sidebar.markdown("### 🎛️ SCADA CONTROL STATION")
 
 col_btn1, col_btn2 = st.sidebar.columns(2)
 if col_btn1.button("▶ START STREAM"):
     st.session_state.running = True
+    st.rerun()
+
 if col_btn2.button("⏹ FREEZE STREAM"):
     st.session_state.running = False
+    st.rerun()
 
 if st.sidebar.button("🔄 RESET SYSTEM"):
     st.session_state.telemetry_history = {"time": [], "sp": [], "pv": [], "mv": []}
@@ -124,8 +122,8 @@ st.sidebar.markdown("#### 💥 Stress Load Testing")
 if st.sidebar.button("⚠️ INJECT +20% LOAD SHOCK"):
     st.session_state.disturbance_val = 20.0
 
-# إعداد محرك التحكم
-dt = 0.1
+# Fixed execution parameters
+dt = 0.35  # متطابق تماماً مع زمن التحديث الانسيابي
 tau = 2.5
 controller = IndustrialPID(
     kp=kp,
@@ -133,20 +131,20 @@ controller = IndustrialPID(
     kd=kd,
     setpoint=sp,
     output_limits=(0.0, 100.0),
-    sample_time=dt,
+    sample_time=0.05,
 )
 
-# ترويسة الواجهة
+# --- Top Header ---
 h1, h2 = st.columns([3, 1])
 with h1:
     st.markdown("## ⚡ APEX SCADA | COCKPIT TELEMETRY & RADIAL GAUGES")
-    st.caption("Industrial Closed-Loop Edge Controller with Cyberpunk Dial Instruments")
+    st.caption("Industrial Closed-Loop Edge Controller with Native Zero-Flicker Architecture")
 
 with h2:
     st.markdown("<div style='height: 15px'></div>", unsafe_allow_html=True)
     if st.session_state.running:
         st.markdown(
-            '<span class="pulse-live"></span> <b style="color: #00E676; font-family: monospace;">STREAMING LIVE (10 Hz)</b>',
+            '<span class="pulse-live"></span> <b style="color: #00E676; font-family: monospace;">STREAMING LIVE (~3 Hz)</b>',
             unsafe_allow_html=True,
         )
     else:
@@ -155,14 +153,8 @@ with h2:
             unsafe_allow_html=True,
         )
 
-# حاويات مخصصة لتحديث العناصر الرسومية لحظياً دون اهتزاز الصفحة
-kpi_container = st.empty()
-gauges_container = st.empty()
-chart_container = st.empty()
-
 
 def build_radial_gauges(pv: float, sp_val: float, mv: float) -> go.Figure:
-    """بناء عدادين دائريين بنمط Cyberpunk لمراقبة PV و MV متجاورين."""
     fig_gauge = make_subplots(
         rows=1,
         cols=2,
@@ -170,16 +162,16 @@ def build_radial_gauges(pv: float, sp_val: float, mv: float) -> go.Figure:
         horizontal_spacing=0.12,
     )
 
-    # 1. عداد Process Value (PV)
+    # 1. Process Value Gauge
     fig_gauge.add_trace(
         go.Indicator(
             mode="gauge+number",
             value=pv,
-            title={"text": "PROCESS VALUE (PV %)", "font": {"size": 14, "color": "#00E5FF", "family": "JetBrains Mono"}},
-            number={"suffix": "%", "font": {"size": 28, "color": "#FFFFFF", "family": "JetBrains Mono"}},
+            title={"text": "PROCESS VALUE (PV %)", "font": {"size": 13, "color": "#00E5FF", "family": "JetBrains Mono"}},
+            number={"suffix": "%", "font": {"size": 26, "color": "#FFFFFF", "family": "JetBrains Mono"}},
             gauge={
                 "axis": {"range": [0, 100], "tickwidth": 1, "tickcolor": "#64748B", "nticks": 6},
-                "bar": {"color": "#00E5FF", "thickness": 0.3},
+                "bar": {"color": "#00E5FF", "thickness": 0.32},
                 "bgcolor": "#090D14",
                 "borderwidth": 1,
                 "bordercolor": "#162032",
@@ -199,16 +191,16 @@ def build_radial_gauges(pv: float, sp_val: float, mv: float) -> go.Figure:
         col=1,
     )
 
-    # 2. عداد Manipulated Variable (MV)
+    # 2. Manipulated Variable Gauge
     fig_gauge.add_trace(
         go.Indicator(
             mode="gauge+number",
             value=mv,
-            title={"text": "ACTUATOR EFFORT (MV %)", "font": {"size": 14, "color": "#FF3D00", "family": "JetBrains Mono"}},
-            number={"suffix": "%", "font": {"size": 28, "color": "#FFFFFF", "family": "JetBrains Mono"}},
+            title={"text": "ACTUATOR EFFORT (MV %)", "font": {"size": 13, "color": "#FF3D00", "family": "JetBrains Mono"}},
+            number={"suffix": "%", "font": {"size": 26, "color": "#FFFFFF", "family": "JetBrains Mono"}},
             gauge={
                 "axis": {"range": [0, 100], "tickwidth": 1, "tickcolor": "#64748B", "nticks": 6},
-                "bar": {"color": "#FF3D00", "thickness": 0.3},
+                "bar": {"color": "#FF3D00", "thickness": 0.32},
                 "bgcolor": "#090D14",
                 "borderwidth": 1,
                 "bordercolor": "#162032",
@@ -224,64 +216,92 @@ def build_radial_gauges(pv: float, sp_val: float, mv: float) -> go.Figure:
     )
 
     fig_gauge.update_layout(
+        uirevision="static_gauge",
         paper_bgcolor="#05070A",
-        height=240,
-        margin=dict(l=25, r=25, t=35, b=10),
+        height=220,
+        margin=dict(l=25, r=25, t=30, b=10),
     )
     return fig_gauge
 
 
-def render_scada_view():
+# معدل التحديث اللحظي عبر تقنية Fragment الرسمية
+REFRESH_INTERVAL = 0.35 if st.session_state.running else None
+
+
+@st.fragment(run_every=REFRESH_INTERVAL)
+def live_scada_viewport():
+    """هذه الدالة تُحدّث نفسها تلقائياً في الخلفية بدون وميض وبدون إعادة تحميل الصفحة."""
+    # 1. تحديث معادلات التحكم والفيزياء إذا كان البث مفعلاً
+    if st.session_state.running:
+        current_pv = st.session_state.pv_live
+        mv = controller.update(pv=current_pv, current_time=st.session_state.sim_time)
+
+        dist = st.session_state.disturbance_val
+        dpv = ((mv + dist) - current_pv) / tau * dt
+        st.session_state.pv_live += dpv
+        st.session_state.sim_time += dt
+        st.session_state.disturbance_val *= 0.85
+
+        hist = st.session_state.telemetry_history
+        hist["time"].append(round(st.session_state.sim_time, 1))
+        hist["sp"].append(sp)
+        hist["pv"].append(round(st.session_state.pv_live, 2))
+        hist["mv"].append(round(mv, 2))
+
     hist = st.session_state.telemetry_history
     last_pv = hist["pv"][-1] if hist["pv"] else 0.0
     last_mv = hist["mv"][-1] if hist["mv"] else 0.0
     error = sp - last_pv
 
-    # 1. تحديث بطاقات الـ KPI
-    with kpi_container.container():
-        k1, k2, k3, k4 = st.columns(4)
-        k1.markdown(
-            f'<div class="metric-card"><div class="metric-title">PROCESS VALUE (PV)</div><div class="metric-value" style="color: #00E5FF;">{last_pv:.2f}%</div></div>',
-            unsafe_allow_html=True,
-        )
-        k2.markdown(
-            f'<div class="metric-card"><div class="metric-title">TARGET SETPOINT (SP)</div><div class="metric-value" style="color: #FFD700;">{sp:.2f}%</div></div>',
-            unsafe_allow_html=True,
-        )
-        k3.markdown(
-            f'<div class="metric-card"><div class="metric-title">ACTUATOR OUTPUT (MV)</div><div class="metric-value" style="color: #FF3D00;">{last_mv:.2f}%</div></div>',
-            unsafe_allow_html=True,
-        )
-        k4.markdown(
-            f'<div class="metric-card"><div class="metric-title">TRACKING ERROR</div><div class="metric-value" style="color: {"#00E676" if abs(error)<2 else "#FFAB00"};">{error:+.2f}%</div></div>',
-            unsafe_allow_html=True,
-        )
+    # 2. بطاقات KPI
+    k1, k2, k3, k4 = st.columns(4)
+    k1.markdown(
+        f'<div class="metric-card"><div class="metric-title">PROCESS VALUE (PV)</div><div class="metric-value" style="color: #00E5FF;">{last_pv:.2f}%</div></div>',
+        unsafe_allow_html=True,
+    )
+    k2.markdown(
+        f'<div class="metric-card"><div class="metric-title">TARGET SETPOINT (SP)</div><div class="metric-value" style="color: #FFD700;">{sp:.2f}%</div></div>',
+        unsafe_allow_html=True,
+    )
+    k3.markdown(
+        f'<div class="metric-card"><div class="metric-title">ACTUATOR OUTPUT (MV)</div><div class="metric-value" style="color: #FF3D00;">{last_mv:.2f}%</div></div>',
+        unsafe_allow_html=True,
+    )
+    k4.markdown(
+        f'<div class="metric-card"><div class="metric-title">TRACKING ERROR</div><div class="metric-value" style="color: {"#00E676" if abs(error)<2 else "#FFAB00"};">{error:+.2f}%</div></div>',
+        unsafe_allow_html=True,
+    )
 
-    # 2. تحديث العدادات الدائرية (Gauges)
+    # 3. العدادات الدائرية مع مفتاح فريد لمنع خطأ DuplicateElementId
     fig_gauges = build_radial_gauges(last_pv, sp, last_mv)
-    gauges_container.plotly_chart(fig_gauges, use_container_width=True)
+    st.plotly_chart(
+        fig_gauges,
+        use_container_width=True,
+        key="fixed_radial_gauges",
+        config={"displayModeBar": False},
+    )
 
-    # 3. تحديث راسم الإشارة (Oscilloscope)
+    # 4. راسم الإشارة المتحرك (Oscilloscope)
     if len(hist["time"]) > 1:
-        display_pts = 60
+        display_pts = 50
         t_slice = hist["time"][-display_pts:]
         sp_slice = hist["sp"][-display_pts:]
         pv_slice = hist["pv"][-display_pts:]
         mv_slice = hist["mv"][-display_pts:]
 
-        fig = make_subplots(
+        fig_osc = make_subplots(
             rows=2,
             cols=1,
             shared_xaxes=True,
             vertical_spacing=0.08,
             row_heights=[0.7, 0.3],
             subplot_titles=(
-                "Real-Time Oscilloscope Dynamic Response",
+                "Real-Time Oscilloscope Response",
                 "Actuator Effort (MV %)",
             ),
         )
 
-        fig.add_trace(
+        fig_osc.add_trace(
             go.Scatter(
                 x=t_slice,
                 y=sp_slice,
@@ -291,7 +311,7 @@ def render_scada_view():
             row=1,
             col=1,
         )
-        fig.add_trace(
+        fig_osc.add_trace(
             go.Scatter(
                 x=t_slice,
                 y=pv_slice,
@@ -301,7 +321,7 @@ def render_scada_view():
             row=1,
             col=1,
         )
-        fig.add_trace(
+        fig_osc.add_trace(
             go.Scatter(
                 x=t_slice,
                 y=mv_slice,
@@ -314,49 +334,30 @@ def render_scada_view():
             col=1,
         )
 
-        fig.update_layout(
-            uirevision="constant",
+        fig_osc.update_layout(
+            uirevision="constant_view",
             paper_bgcolor="#05070A",
             plot_bgcolor="#090D14",
             font=dict(color="#94A3B8", family="JetBrains Mono"),
-            height=460,
+            height=440,
             margin=dict(l=30, r=30, t=35, b=20),
             legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
         )
-        fig.update_xaxes(gridcolor="#141D2D")
-        fig.update_yaxes(gridcolor="#141D2D")
-        chart_container.plotly_chart(fig, use_container_width=True)
+        fig_osc.update_xaxes(gridcolor="#141D2D")
+        fig_osc.update_yaxes(gridcolor="#141D2D")
+
+        st.plotly_chart(
+            fig_osc,
+            use_container_width=True,
+            key="fixed_oscilloscope_chart",
+            config={"displayModeBar": False},
+        )
 
 
-# حلقة البث المباشر (10 Hz)
-if st.session_state.running:
-    while st.session_state.running:
-        current_pv = st.session_state.pv_live
-        mv = controller.update(pv=current_pv, current_time=st.session_state.sim_time)
+# استدعاء الحاوية المستقلة
+live_scada_viewport()
 
-        # محاكاة الاستجابة الفيزيائية
-        dist = st.session_state.disturbance_val
-        dpv = ((mv + dist) - current_pv) / tau * dt
-        st.session_state.pv_live += dpv
-        st.session_state.sim_time += dt
-
-        # تبديد الاضطراب تدريجياً
-        st.session_state.disturbance_val *= 0.9
-
-        # تخزين القياسات
-        hist = st.session_state.telemetry_history
-        hist["time"].append(round(st.session_state.sim_time, 1))
-        hist["sp"].append(sp)
-        hist["pv"].append(round(st.session_state.pv_live, 2))
-        hist["mv"].append(round(mv, 2))
-
-        # تحديث الواجهة والعدادات
-        render_scada_view()
-        time.sleep(0.1)
-else:
-    render_scada_view()
-
-# تصدير البيانات إلى CSV
+# قسم تصدير البيانات (خارج الـ Fragment حتى لا يعيد رسم نفسه)
 if len(st.session_state.telemetry_history["time"]) > 0:
     st.markdown("---")
     df_export = pd.DataFrame(st.session_state.telemetry_history)
