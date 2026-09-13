@@ -9,13 +9,13 @@ from core.pid import IndustrialPID
 
 # --- Page Configuration ---
 st.set_page_config(
-    page_title="APEX SCADA | High-Speed Telemetry Engine",
+    page_title="APEX SCADA | Ultra-Stable Telemetry Engine",
     page_icon="⚡",
     layout="wide",
     initial_sidebar_state="expanded",
 )
 
-# --- Cyberpunk/OLED Ultra-Smooth UI ---
+# --- Cyberpunk/OLED Dark UI & Stable Layout CSS ---
 st.markdown(
     """
 <style>
@@ -46,12 +46,13 @@ st.markdown(
         box-shadow: 0 0 25px rgba(239, 68, 68, 0.8);
     }
 
-    /* Metric Cards */
+    /* Fixed-Height KPI Metric Cards to eliminate layout shift */
     .metric-card {
         background: linear-gradient(180deg, #0B101A 0%, #06090F 100%);
         border: 1px solid #1A263B;
         border-radius: 8px;
         padding: 12px 14px;
+        min-height: 82px;
         box-shadow: 0 4px 12px rgba(0,0,0,0.5);
     }
     .metric-title {
@@ -64,54 +65,6 @@ st.markdown(
         font-family: 'JetBrains Mono', monospace;
         font-size: 1.45rem;
         font-weight: 800;
-    }
-
-    /* Zero-Flicker Hardware Dial Gauges (CSS Native) */
-    .gauge-wrapper {
-        background: #080C14;
-        border: 1px solid #162032;
-        border-radius: 8px;
-        padding: 14px;
-        display: flex;
-        flex-direction: column;
-        gap: 8px;
-    }
-    .gauge-header {
-        display: flex;
-        justify-content: space-between;
-        font-family: 'JetBrains Mono', monospace;
-        font-size: 0.8rem;
-        font-weight: 600;
-    }
-    .gauge-track {
-        background: #101622;
-        border-radius: 6px;
-        height: 18px;
-        width: 100%;
-        overflow: hidden;
-        position: relative;
-        border: 1px solid #1E293B;
-    }
-    .gauge-fill-pv {
-        height: 100%;
-        background: linear-gradient(90deg, #00B0FF 0%, #00E5FF 100%);
-        box-shadow: 0 0 12px #00E5FF;
-        transition: width 0.12s linear;
-    }
-    .gauge-fill-mv {
-        height: 100%;
-        background: linear-gradient(90deg, #D50000 0%, #FF3D00 100%);
-        box-shadow: 0 0 12px #FF3D00;
-        transition: width 0.12s linear;
-    }
-    .gauge-marker {
-        position: absolute;
-        top: 0;
-        bottom: 0;
-        width: 3px;
-        background: #FFD700;
-        box-shadow: 0 0 8px #FFD700;
-        z-index: 2;
     }
 
     .pulse-live {
@@ -215,7 +168,6 @@ if st.sidebar.button("⚡ +20% LOAD SPIKE"):
 st.session_state.noise_enabled = st.sidebar.checkbox("Gaussian Noise", value=st.session_state.noise_enabled)
 
 # Initialize Controller
-dt = 0.05
 controller = IndustrialPID(
     kp=kp,
     ki=ki,
@@ -228,27 +180,98 @@ controller = IndustrialPID(
 # --- Top Header ---
 h1, h2 = st.columns([3, 1])
 with h1:
-    st.markdown("## ⚡ APEX SCADA | HIGH-SPEED TELEMETRY")
-    st.caption("GPU-Accelerated Zero-Flicker Closed-Loop Control")
+    st.markdown("## ⚡ APEX SCADA | TELEMETRY SUITE")
+    st.caption("Zero-Flicker Closed-Loop Control & Real-Time Radial Gauges")
 
 with h2:
     st.markdown("<div style='height: 12px'></div>", unsafe_allow_html=True)
     if st.session_state.estop:
         st.markdown('<b style="color: #EF4444; font-family: monospace;">🛑 E-STOP ACTIVE</b>', unsafe_allow_html=True)
     elif st.session_state.running:
-        st.markdown('<span class="pulse-live"></span> <b style="color: #00E676; font-family: monospace;">LIVE (6-7 Hz)</b>', unsafe_allow_html=True)
+        st.markdown('<span class="pulse-live"></span> <b style="color: #00E676; font-family: monospace;">LIVE STREAM ACTIVE</b>', unsafe_allow_html=True)
     else:
         st.markdown('<b style="color: #64748B; font-family: monospace;">● STANDBY</b>', unsafe_allow_html=True)
 
-# سرعة تحديث الواجهة: 150ms لتوفير انسيابية عالية دون وميض
-UI_INTERVAL = 0.15 if st.session_state.running and not st.session_state.estop else None
+
+def build_semi_circular_gauges(pv: float, sp_val: float, mv: float) -> go.Figure:
+    """بناء العدادات نصف الدائرية الحقيقية مع تخصيص Cyberpunk كامل."""
+    fig = make_subplots(
+        rows=1,
+        cols=2,
+        specs=[[{"type": "indicator"}, {"type": "indicator"}]],
+        horizontal_spacing=0.10,
+    )
+
+    # 1. عداد PV نصف الدائري (Angular Arc)
+    fig.add_trace(
+        go.Indicator(
+            mode="gauge+number",
+            value=pv,
+            title={"text": "PROCESS VALUE (PV %)", "font": {"size": 13, "color": "#00E5FF", "family": "JetBrains Mono"}},
+            number={"suffix": "%", "font": {"size": 24, "color": "#FFFFFF", "family": "JetBrains Mono"}},
+            gauge={
+                "shape": "angular",
+                "axis": {"range": [0, 100], "tickwidth": 1, "tickcolor": "#64748B", "nticks": 6},
+                "bar": {"color": "#00E5FF", "thickness": 0.35},
+                "bgcolor": "#090D14",
+                "borderwidth": 1,
+                "bordercolor": "#162032",
+                "steps": [
+                    {"range": [0, 40], "color": "rgba(0, 229, 255, 0.05)"},
+                    {"range": [40, 80], "color": "rgba(0, 230, 118, 0.08)"},
+                    {"range": [80, 100], "color": "rgba(255, 61, 0, 0.15)"},
+                ],
+                "threshold": {"line": {"color": "#FFD700", "width": 4}, "thickness": 0.8, "value": sp_val},
+            },
+        ),
+        row=1,
+        col=1,
+    )
+
+    # 2. عداد MV نصف الدائري
+    fig.add_trace(
+        go.Indicator(
+            mode="gauge+number",
+            value=mv,
+            title={"text": "ACTUATOR EFFORT (MV %)", "font": {"size": 13, "color": "#FF3D00", "family": "JetBrains Mono"}},
+            number={"suffix": "%", "font": {"size": 24, "color": "#FFFFFF", "family": "JetBrains Mono"}},
+            gauge={
+                "shape": "angular",
+                "axis": {"range": [0, 100], "tickwidth": 1, "tickcolor": "#64748B", "nticks": 6},
+                "bar": {"color": "#FF3D00", "thickness": 0.35},
+                "bgcolor": "#090D14",
+                "borderwidth": 1,
+                "bordercolor": "#162032",
+                "steps": [
+                    {"range": [0, 60], "color": "rgba(255, 61, 0, 0.05)"},
+                    {"range": [60, 85], "color": "rgba(255, 171, 0, 0.1)"},
+                    {"range": [85, 100], "color": "rgba(255, 61, 0, 0.25)"},
+                ],
+            },
+        ),
+        row=1,
+        col=2,
+    )
+
+    fig.update_layout(
+        uirevision="constant_gauges",
+        paper_bgcolor="#04060A",
+        height=210,
+        margin=dict(l=20, r=20, t=25, b=10),
+    )
+    return fig
 
 
-@st.fragment(run_every=UI_INTERVAL)
+# التردد الذهبي المستقر للسحابة (0.65 ثانية يمنع تصادم حزم WebSocket تماماً)
+STABLE_INTERVAL = 0.65 if st.session_state.running and not st.session_state.estop else None
+
+
+@st.fragment(run_every=STABLE_INTERVAL)
 def live_scada_viewport():
-    # تنفيذ عدة خطوات فيزيائية في الدورة الواحدة لدقة الحركة وسرعتها
+    # حساب 5 خطوات فيزيائية داخلياً لضمان سرعة وحيوية المنحنى دون إرهاق المتصفح
     if st.session_state.running and not st.session_state.estop:
-        for _ in range(3):
+        sub_dt = 0.12
+        for _ in range(5):
             current_pv = st.session_state.pv_live
             if st.session_state.manual_mode:
                 mv = float(st.session_state.manual_mv)
@@ -256,17 +279,17 @@ def live_scada_viewport():
                 mv = controller.update(pv=current_pv, current_time=st.session_state.sim_time)
 
             dist = st.session_state.disturbance_val
-            dpv = ((mv + dist) - current_pv) / tau * dt
+            dpv = ((mv + dist) - current_pv) / tau * sub_dt
             st.session_state.pv_live += dpv
-            st.session_state.sim_time += dt
-            st.session_state.disturbance_val *= 0.94
+            st.session_state.sim_time += sub_dt
+            st.session_state.disturbance_val *= 0.92
 
         measured_pv = st.session_state.pv_live
         if st.session_state.noise_enabled:
-            measured_pv += np.random.normal(0, 0.7)
+            measured_pv += np.random.normal(0, 0.6)
 
         hist = st.session_state.telemetry_history
-        hist["time"].append(round(st.session_state.sim_time, 2))
+        hist["time"].append(round(st.session_state.sim_time, 1))
         hist["sp"].append(sp)
         hist["pv"].append(round(measured_pv, 2))
         hist["mv"].append(round(mv, 2))
@@ -276,57 +299,25 @@ def live_scada_viewport():
     last_mv = hist["mv"][-1] if hist["mv"] else 0.0
     error = sp - last_pv
 
-    # 1. KPI Cards
+    # 1. بطاقات الأرقام اللحظية
     k1, k2, k3, k4 = st.columns(4)
     k1.markdown(f'<div class="metric-card"><div class="metric-title">PROCESS VALUE (PV)</div><div class="metric-value" style="color: #00E5FF;">{last_pv:.2f}%</div></div>', unsafe_allow_html=True)
     k2.markdown(f'<div class="metric-card"><div class="metric-title">TARGET SETPOINT (SP)</div><div class="metric-value" style="color: #FFD700;">{sp:.2f}%</div></div>', unsafe_allow_html=True)
     k3.markdown(f'<div class="metric-card"><div class="metric-title">ACTUATOR OUTPUT (MV)</div><div class="metric-value" style="color: #FF3D00;">{last_mv:.2f}%</div></div>', unsafe_allow_html=True)
     k4.markdown(f'<div class="metric-card"><div class="metric-title">TRACKING ERROR</div><div class="metric-value" style="color: {"#00E676" if abs(error)<2 else "#FFAB00"};">{error:+.2f}%</div></div>', unsafe_allow_html=True)
 
-    st.markdown("<div style='height: 8px'></div>", unsafe_allow_html=True)
+    # 2. رسم العدادات نصف الدائرية مع تثبيت المعرف البرمجي لمنع التكرار
+    fig_dials = build_semi_circular_gauges(last_pv, sp, last_mv)
+    st.plotly_chart(
+        fig_dials,
+        use_container_width=True,
+        key="stable_radial_dials",
+        config={"displayModeBar": False, "staticPlot": True},
+    )
 
-    # 2. Native CSS Industrial Linear Gauges (Zero-Flicker Hardware Twin)
-    clamped_pv = max(0.0, min(100.0, last_pv))
-    clamped_mv = max(0.0, min(100.0, last_mv))
-    clamped_sp = max(0.0, min(100.0, sp))
-
-    g_col1, g_col2 = st.columns(2)
-    with g_col1:
-        st.markdown(
-            f"""
-        <div class="gauge-wrapper">
-            <div class="gauge-header">
-                <span style="color: #00E5FF;">PROCESS VALUE (PV)</span>
-                <span style="color: #FFFFFF;">{clamped_pv:.1f}%</span>
-            </div>
-            <div class="gauge-track">
-                <div class="gauge-fill-pv" style="width: {clamped_pv}%;"></div>
-                <div class="gauge-marker" style="left: calc({clamped_sp}% - 1.5px);" title="Setpoint Target"></div>
-            </div>
-        </div>
-        """,
-            unsafe_allow_html=True,
-        )
-
-    with g_col2:
-        st.markdown(
-            f"""
-        <div class="gauge-wrapper">
-            <div class="gauge-header">
-                <span style="color: #FF3D00;">ACTUATOR EFFORT (MV)</span>
-                <span style="color: #FFFFFF;">{clamped_mv:.1f}%</span>
-            </div>
-            <div class="gauge-track">
-                <div class="gauge-fill-mv" style="width: {clamped_mv}%;"></div>
-            </div>
-        </div>
-        """,
-            unsafe_allow_html=True,
-        )
-
-    # 3. High-Speed WebGL Oscilloscope (Scattergl)
+    # 3. راسم الإشارة (Oscilloscope)
     if len(hist["time"]) > 1:
-        display_pts = 60
+        display_pts = 45
         t_slice = hist["time"][-display_pts:]
         sp_slice = hist["sp"][-display_pts:]
         pv_slice = hist["pv"][-display_pts:]
@@ -341,40 +332,12 @@ def live_scada_viewport():
             subplot_titles=("Real-Time Closed-Loop Response", "Actuator Output (MV %)"),
         )
 
-        # استخدام Scattergl لتسريع الرسم عبر كرت الشاشة ومنع الوميض
-        fig_osc.add_trace(
-            go.Scattergl(
-                x=t_slice,
-                y=sp_slice,
-                line=dict(color="#FFD700", width=2, dash="dash"),
-                name="Setpoint",
-            ),
-            row=1,
-            col=1,
-        )
-        fig_osc.add_trace(
-            go.Scattergl(
-                x=t_slice,
-                y=pv_slice,
-                line=dict(color="#00E5FF", width=2.5),
-                name="Process Value",
-            ),
-            row=1,
-            col=1,
-        )
-        fig_osc.add_trace(
-            go.Scattergl(
-                x=t_slice,
-                y=mv_slice,
-                line=dict(color="#FF3D00", width=2),
-                name="Actuator (MV)",
-            ),
-            row=2,
-            col=1,
-        )
+        fig_osc.add_trace(go.Scatter(x=t_slice, y=sp_slice, line=dict(color="#FFD700", width=2, dash="dash"), name="Setpoint"), row=1, col=1)
+        fig_osc.add_trace(go.Scatter(x=t_slice, y=pv_slice, line=dict(color="#00E5FF", width=2.5), name="Process Value"), row=1, col=1)
+        fig_osc.add_trace(go.Scatter(x=t_slice, y=mv_slice, line=dict(color="#FF3D00", width=2), fill="tozeroy", fillcolor="rgba(255, 61, 0, 0.08)", name="Actuator (MV)"), row=2, col=1)
 
         fig_osc.update_layout(
-            uirevision="steady_axis",
+            uirevision="steady_scope",
             paper_bgcolor="#04060A",
             plot_bgcolor="#080B12",
             font=dict(color="#94A3B8", family="JetBrains Mono"),
@@ -388,8 +351,8 @@ def live_scada_viewport():
         st.plotly_chart(
             fig_osc,
             use_container_width=True,
-            key="smooth_webgl_chart",
-            config={"displayModeBar": False, "staticPlot": False},
+            key="stable_oscilloscope",
+            config={"displayModeBar": False},
         )
 
 
